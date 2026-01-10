@@ -1,1 +1,54 @@
-# Multi-stage build\n\n# Stage 1: Build frontend\nFROM node:22-alpine AS frontend-builder\n\nWORKDIR /app/client\n\nCOPY client/package*.json ./\nRUN pnpm install\n\nCOPY client/ ./\nRUN pnpm build\n\n# Stage 2: Build backend\nFROM node:22-alpine AS backend-builder\n\nWORKDIR /app/server\n\nCOPY server/package*.json ./\nRUN pnpm install\n\nCOPY server/ ./\nRUN pnpm build\n\n# Stage 3: Production image\nFROM node:22-alpine\n\nWORKDIR /app\n\n# Install dumb-init for proper signal handling\nRUN apk add --no-cache dumb-init\n\n# Copy built backend\nCOPY --from=backend-builder /app/server/dist ./server/dist\nCOPY --from=backend-builder /app/server/node_modules ./server/node_modules\nCOPY --from=backend-builder /app/server/package*.json ./server/\n\n# Copy built frontend\nCOPY --from=frontend-builder /app/client/dist ./client/dist\n\n# Create non-root user\nRUN addgroup -g 1001 -S nodejs\nRUN adduser -S nodejs -u 1001\nUSER nodejs\n\nEXPOSE 3000\n\n# Health check\nHEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \\\n  CMD node -e \"require('http').get('http://localhost:3000/api/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})\" || exit 1\n\nENTRYPOINT [\"dumb-init\", \"--\"]\nCMD [\"node\", \"server/dist/index.js\"]\n
+# Multi-stage build
+# Stage 1: Build frontend
+FROM node:22-alpine AS frontend-builder
+
+WORKDIR /app/client
+
+# Install pnpm
+RUN npm install -g pnpm
+
+COPY client/package*.json ./
+RUN pnpm install
+
+COPY client/ ./
+RUN pnpm build
+
+# Stage 2: Build backend
+FROM node:22-alpine AS backend-builder
+
+WORKDIR /app/server
+
+# Install pnpm
+RUN npm install -g pnpm
+
+COPY server/package*.json ./
+RUN pnpm install
+
+COPY server/ ./
+RUN pnpm build
+
+# Stage 3: Production image
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Copy built backend
+COPY --from=backend-builder /app/server/dist ./server/dist
+COPY --from=backend-builder /app/server/node_modules ./server/node_modules
+COPY --from=backend-builder /app/server/package*.json ./server/
+
+# Copy built frontend
+COPY --from=frontend-builder /app/client/dist ./client/dist
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+USER nodejs
+
+EXPOSE 3000
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "server/dist/index.js"]
