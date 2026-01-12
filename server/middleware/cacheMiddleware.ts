@@ -1,1 +1,79 @@
-/**\n * Cache Middleware\n * HTTP caching for GET requests\n */\n\nimport { Request, Response, NextFunction } from 'express';\nimport cache from '../utils/cache.js';\n\ninterface CachedRequest extends Request {\n  cacheKey?: string;\n}\n\n/**\n * Cache middleware for GET requests\n */\nexport function cacheMiddleware(ttlSeconds: number = 300) {\n  return (req: CachedRequest, res: Response, next: NextFunction) => {\n    // Only cache GET requests\n    if (req.method !== 'GET') {\n      return next();\n    }\n\n    // Generate cache key\n    const cacheKey = `${req.user?.id}:${req.path}:${JSON.stringify(req.query)}`;\n    req.cacheKey = cacheKey;\n\n    // Check cache\n    const cachedData = cache.get(cacheKey);\n    if (cachedData) {\n      return res.json(cachedData);\n    }\n\n    // Override res.json to cache response\n    const originalJson = res.json.bind(res);\n    res.json = function (data: any) {\n      // Cache successful responses\n      if (res.statusCode === 200) {\n        cache.set(cacheKey, data, ttlSeconds);\n      }\n      return originalJson(data);\n    };\n\n    next();\n  };\n}\n\n/**\n * Invalidate cache\n */\nexport function invalidateCache(pattern?: string): void {\n  if (!pattern) {\n    cache.clear();\n    return;\n  }\n\n  // Invalidate specific cache entries matching pattern\n  const stats = cache.stats();\n  stats.entries.forEach((entry) => {\n    if (entry.key.includes(pattern)) {\n      cache.delete(entry.key);\n    }\n  });\n}\n\n/**\n * Cache invalidation middleware\n * Invalidates cache on POST/PUT/DELETE requests\n */\nexport function cacheInvalidationMiddleware(req: Request, res: Response, next: NextFunction) {\n  // Invalidate cache on mutations\n  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {\n    // Invalidate user-specific cache\n    if (req.user?.id) {\n      invalidateCache(req.user.id);\n    }\n  }\n\n  next();\n}\n
+/**
+ * Cache Middleware
+ * HTTP caching for GET requests
+ */
+
+import { Request, Response, NextFunction } from 'express';
+import cache from '../utils/cache.js';
+
+interface CachedRequest extends Request {
+  cacheKey?: string;
+}
+
+/**
+ * Cache middleware for GET requests
+ */
+export function cacheMiddleware(ttlSeconds: number = 300) {
+  return (req: CachedRequest, res: Response, next: NextFunction) => {
+    // Only cache GET requests
+    if (req.method !== 'GET') {
+      return next();
+    }
+
+    // Generate cache key
+    const cacheKey = `${req.user?.id}:${req.path}:${JSON.stringify(req.query)}`;
+    req.cacheKey = cacheKey;
+
+    // Check cache
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      return res.json(cachedData);
+    }
+
+    // Override res.json to cache response
+    const originalJson = res.json.bind(res);
+    res.json = function (data: any) {
+      // Cache successful responses
+      if (res.statusCode === 200) {
+        cache.set(cacheKey, data, ttlSeconds);
+      }
+      return originalJson(data);
+    };
+
+    next();
+  };
+}
+
+/**
+ * Invalidate cache
+ */
+export function invalidateCache(pattern?: string): void {
+  if (!pattern) {
+    cache.clear();
+    return;
+  }
+
+  // Invalidate specific cache entries matching pattern
+  const stats = cache.stats();
+  stats.entries.forEach((entry) => {
+    if (entry.key.includes(pattern)) {
+      cache.delete(entry.key);
+    }
+  });
+}
+
+/**
+ * Cache invalidation middleware
+ * Invalidates cache on POST/PUT/DELETE requests
+ */
+export function cacheInvalidationMiddleware(req: Request, res: Response, next: NextFunction) {
+  // Invalidate cache on mutations
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    // Invalidate user-specific cache
+    if (req.user?.id) {
+      invalidateCache(req.user.id);
+    }
+  }
+
+  next();
+}

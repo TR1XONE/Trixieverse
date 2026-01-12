@@ -1,1 +1,223 @@
-/**\n * TrixieVerse Server\n * The Living Coach System - Revolutionary Wild Rift Coaching Platform\n */\n\nimport express, { Express, Request, Response, NextFunction } from 'express';\nimport cors from 'cors';\nimport helmet from 'helmet';\nimport compression from 'compression';\nimport { WebSocketServer } from 'ws';\nimport http from 'http';\nimport dotenv from 'dotenv';\nimport path from 'path';\nimport { fileURLToPath } from 'url';\n\nconst __filename = fileURLToPath(import.meta.url);\nconst __dirname = path.dirname(__filename);\n\n// Load environment variables\ndotenv.config();\n\n// Import middleware\nimport requestLogger from './middleware/requestLogger.js';\nimport ErrorHandler from './middleware/errorHandler.js';\nimport { applySecurityMiddleware } from './middleware/security.js';\nimport { cacheMiddleware, cacheInvalidationMiddleware } from './middleware/cacheMiddleware.js';\nimport authMiddleware from './middleware/authMiddleware.js';\n\n// Import routes\nimport apiRoutes from './routes/apiRoutes.js';\nimport adminRoutes from './routes/adminRoutes.js';\nimport coachRoutes from './routes/coachRoutes.js';\nimport accountRoutes from './routes/accountRoutes.js';\n\n// Import services\nimport logger from './utils/logger.js';\n\n// Initialize Express app\nconst app: Express = express();\nconst PORT = process.env.PORT || 3000;\nconst NODE_ENV = process.env.NODE_ENV || 'development';\n\n// Create HTTP server for WebSocket support\nconst server = http.createServer(app);\nconst wss = new WebSocketServer({ server });\n\n// ============ MIDDLEWARE ============\n\n// Security middleware\napplySecurityMiddleware(app);\n\n// Body parser\napp.use(express.json({ limit: '10mb' }));\napp.use(express.urlencoded({ limit: '10mb', extended: true }));\n\n// Compression\napp.use(compression());\n\n// Request logging\napp.use(requestLogger);\n\n// Cache invalidation\napp.use(cacheInvalidationMiddleware);\n\n// ============ ROUTES ============\n\n// Health check\napp.get('/api/health', (req: Request, res: Response) => {\n  res.json({\n    status: 'ok',\n    timestamp: new Date().toISOString(),\n    environment: NODE_ENV,\n    uptime: process.uptime(),\n  });\n});\n\n// Main API routes\napp.use('/api', apiRoutes);\n\n// Legacy routes (for backward compatibility)\napp.use('/api/coach', coachRoutes);\napp.use('/api/account', accountRoutes);\n\n// Admin routes (protected)\napp.use('/api/admin', authMiddleware, adminRoutes);\n\n// Static files\nconst staticPath = path.resolve(__dirname, '..', 'dist', 'public');\n\napp.use(express.static(staticPath));\n\n// SPA fallback\napp.get('*', (req: Request, res: Response) => {\n  res.sendFile(path.join(staticPath, 'index.html'));\n});\n\n// ============ ERROR HANDLING ============\n\n// 404 handler\napp.use(ErrorHandler.notFound);\n\n// Error handler\napp.use((err: any, req: Request, res: Response, next: NextFunction) => {\n  ErrorHandler.handle(err, req, res, next);\n});\n\n// ============ WEBSOCKET ============\n\nwss.on('connection', (ws) => {\n  logger.info('WebSocket client connected');\n\n  ws.on('message', (data: string) => {\n    try {\n      const message = JSON.parse(data);\n\n      // Handle different message types\n      switch (message.type) {\n        case 'coach_message':\n          // Broadcast coach message to all connected clients\n          wss.clients.forEach((client) => {\n            if (client.readyState === 1) {\n              client.send(\n                JSON.stringify({\n                  type: 'coach_message',\n                  data: message.data,\n                  timestamp: new Date().toISOString(),\n                })\n              );\n            }\n          });\n          break;\n\n        case 'match_update':\n          // Broadcast match update\n          wss.clients.forEach((client) => {\n            if (client.readyState === 1) {\n              client.send(\n                JSON.stringify({\n                  type: 'match_update',\n                  data: message.data,\n                  timestamp: new Date().toISOString(),\n                })\n              );\n            }\n          });\n          break;\n\n        case 'achievement_unlocked':\n          // Broadcast achievement\n          wss.clients.forEach((client) => {\n            if (client.readyState === 1) {\n              client.send(\n                JSON.stringify({\n                  type: 'achievement_unlocked',\n                  data: message.data,\n                  timestamp: new Date().toISOString(),\n                })\n              );\n            }\n          });\n          break;\n      }\n    } catch (error) {\n      logger.error({ message: 'WebSocket message error', error });\n    }\n  });\n\n  ws.on('close', () => {\n    logger.info('WebSocket client disconnected');\n  });\n\n  ws.on('error', (error) => {\n    logger.error({ message: 'WebSocket error', error });\n  });\n});\n\n// ============ SERVER STARTUP ============\n\nserver.listen(PORT, () => {\n  logger.info(`🚀 TrixieVerse Server running on port ${PORT}`);\n  logger.info(`📊 Environment: ${NODE_ENV}`);\n  logger.info(`🌐 WebSocket server ready`);\n  logger.info(`📚 API: http://localhost:${PORT}/api`);\n  logger.info(`🔧 Health: http://localhost:${PORT}/api/health`);\n});\n\n// ============ GRACEFUL SHUTDOWN ============\n\nprocess.on('SIGTERM', () => {\n  logger.info('SIGTERM signal received: closing HTTP server');\n  server.close(() => {\n    logger.info('HTTP server closed');\n    process.exit(0);\n  });\n});\n\nprocess.on('SIGINT', () => {\n  logger.info('SIGINT signal received: closing HTTP server');\n  server.close(() => {\n    logger.info('HTTP server closed');\n    process.exit(0);\n  });\n});\n\n// ============ ERROR HANDLING ============\n\nprocess.on('unhandledRejection', (reason, promise) => {\n  logger.error({\n    message: 'Unhandled Rejection',\n    reason,\n  });\n});\n\nprocess.on('uncaughtException', (error) => {\n  logger.error({\n    message: 'Uncaught Exception',\n    error: error.message,\n  });\n  process.exit(1);\n});\n\nexport default server;\nexport { wss };\n
+/**
+ * TrixieVerse Server
+ * The Living Coach System - Revolutionary Wild Rift Coaching Platform
+ */
+
+import express, { Express, Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import { WebSocketServer } from 'ws';
+import http from 'http';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables
+dotenv.config();
+
+// Import middleware
+import requestLogger from './middleware/requestLogger.js';
+import ErrorHandler from './middleware/errorHandler.js';
+import { applySecurityMiddleware } from './middleware/security.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from './middleware/cacheMiddleware.js';
+import { verifyToken } from './middleware/authMiddleware.js';
+
+// Import routes
+import apiRoutes from './routes/apiRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import coachRoutes from './routes/coachRoutes.js';
+import accountRoutes from './routes/accountRoutes.js';
+
+// Import services
+import logger from './utils/logger.js';
+
+// Initialize Express app
+const app: Express = express();
+const PORT = process.env.PORT || 3000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Create HTTP server for WebSocket support
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+// ============ MIDDLEWARE ============
+
+// Security middleware
+applySecurityMiddleware(app);
+
+// Body parser
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Compression
+app.use(compression());
+
+// Request logging
+app.use(requestLogger);
+
+// Cache invalidation
+app.use(cacheInvalidationMiddleware);
+
+// ============ ROUTES ============
+
+// Health check
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: NODE_ENV,
+    uptime: process.uptime(),
+  });
+});
+
+// Main API routes
+app.use('/api', apiRoutes);
+
+// Legacy routes (for backward compatibility)
+app.use('/api/coach', coachRoutes);
+app.use('/api/account', accountRoutes);
+
+// Admin routes (protected)
+app.use('/api/admin', verifyToken, adminRoutes);
+
+// Static files
+const staticPath = path.resolve(__dirname, '..', 'dist', 'public');
+
+app.use(express.static(staticPath));
+
+// SPA fallback
+app.get('*', (req: Request, res: Response) => {
+  res.sendFile(path.join(staticPath, 'index.html'));
+});
+
+// ============ ERROR HANDLING ============
+
+// 404 handler
+app.use(ErrorHandler.notFound);
+
+// Error handler
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  ErrorHandler.handle(err, req, res, next);
+});
+
+// ============ WEBSOCKET ============
+
+wss.on('connection', (ws) => {
+  logger.info('WebSocket client connected');
+
+  ws.on('message', (data: string) => {
+    try {
+      const message = JSON.parse(data);
+
+      // Handle different message types
+      switch (message.type) {
+        case 'coach_message':
+          // Broadcast coach message to all connected clients
+          wss.clients.forEach((client) => {
+            if (client.readyState === 1) {
+              client.send(
+                JSON.stringify({
+                  type: 'coach_message',
+                  data: message.data,
+                  timestamp: new Date().toISOString(),
+                })
+              );
+            }
+          });
+          break;
+
+        case 'match_update':
+          // Broadcast match update
+          wss.clients.forEach((client) => {
+            if (client.readyState === 1) {
+              client.send(
+                JSON.stringify({
+                  type: 'match_update',
+                  data: message.data,
+                  timestamp: new Date().toISOString(),
+                })
+              );
+            }
+          });
+          break;
+
+        case 'achievement_unlocked':
+          // Broadcast achievement
+          wss.clients.forEach((client) => {
+            if (client.readyState === 1) {
+              client.send(
+                JSON.stringify({
+                  type: 'achievement_unlocked',
+                  data: message.data,
+                  timestamp: new Date().toISOString(),
+                })
+              );
+            }
+          });
+          break;
+      }
+    } catch (error) {
+      logger.error({ message: 'WebSocket message error', error });
+    }
+  });
+
+  ws.on('close', () => {
+    logger.info('WebSocket client disconnected');
+  });
+
+  ws.on('error', (error) => {
+    logger.error({ message: 'WebSocket error', error });
+  });
+});
+
+// ============ SERVER STARTUP ============
+
+server.listen(PORT, () => {
+  logger.info(`🚀 TrixieVerse Server running on port ${PORT}`);
+  logger.info(`📊 Environment: ${NODE_ENV}`);
+  logger.info(`🌐 WebSocket server ready`);
+  logger.info(`📚 API: http://localhost:${PORT}/api`);
+  logger.info(`🔧 Health: http://localhost:${PORT}/api/health`);
+});
+
+// ============ GRACEFUL SHUTDOWN ============
+
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    logger.info('HTTP server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT signal received: closing HTTP server');
+  server.close(() => {
+    logger.info('HTTP server closed');
+    process.exit(0);
+  });
+});
+
+// ============ ERROR HANDLING ============
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error({
+    message: 'Unhandled Rejection',
+    reason,
+  });
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error({
+    message: 'Uncaught Exception',
+    error: error.message,
+  });
+  process.exit(1);
+});
+
+export default server;
+export { wss };

@@ -1,1 +1,126 @@
-/**\n * Cache Utility\n * In-memory caching for performance optimization\n */\n\ninterface CacheEntry<T> {\n  value: T;\n  expiresAt: number;\n}\n\nclass Cache {\n  private cache: Map<string, CacheEntry<any>> = new Map();\n  private cleanupInterval: NodeJS.Timeout | null = null;\n\n  constructor() {\n    // Clean up expired entries every 5 minutes\n    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);\n  }\n\n  /**\n   * Set cache entry\n   */\n  set<T>(key: string, value: T, ttlSeconds: number = 300): void {\n    const expiresAt = Date.now() + ttlSeconds * 1000;\n    this.cache.set(key, { value, expiresAt });\n  }\n\n  /**\n   * Get cache entry\n   */\n  get<T>(key: string): T | null {\n    const entry = this.cache.get(key);\n\n    if (!entry) {\n      return null;\n    }\n\n    // Check if expired\n    if (Date.now() > entry.expiresAt) {\n      this.cache.delete(key);\n      return null;\n    }\n\n    return entry.value as T;\n  }\n\n  /**\n   * Check if key exists\n   */\n  has(key: string): boolean {\n    const entry = this.cache.get(key);\n    if (!entry) return false;\n\n    if (Date.now() > entry.expiresAt) {\n      this.cache.delete(key);\n      return false;\n    }\n\n    return true;\n  }\n\n  /**\n   * Delete cache entry\n   */\n  delete(key: string): void {\n    this.cache.delete(key);\n  }\n\n  /**\n   * Clear all cache\n   */\n  clear(): void {\n    this.cache.clear();\n  }\n\n  /**\n   * Clean up expired entries\n   */\n  private cleanup(): void {\n    const now = Date.now();\n    let cleaned = 0;\n\n    for (const [key, entry] of this.cache.entries()) {\n      if (now > entry.expiresAt) {\n        this.cache.delete(key);\n        cleaned++;\n      }\n    }\n\n    if (cleaned > 0) {\n      console.log(`[Cache] Cleaned up ${cleaned} expired entries`);\n    }\n  }\n\n  /**\n   * Get cache size\n   */\n  size(): number {\n    return this.cache.size;\n  }\n\n  /**\n   * Get cache stats\n   */\n  stats() {\n    return {\n      size: this.cache.size,\n      entries: Array.from(this.cache.entries()).map(([key, entry]) => ({\n        key,\n        expiresIn: Math.max(0, entry.expiresAt - Date.now()),\n      })),\n    };\n  }\n\n  /**\n   * Destroy cache\n   */\n  destroy(): void {\n    if (this.cleanupInterval) {\n      clearInterval(this.cleanupInterval);\n    }\n    this.cache.clear();\n  }\n}\n\nexport default new Cache();\n
+/**
+ * Cache Utility
+ * In-memory caching for performance optimization
+ */
+
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
+class Cache {
+  private cache: Map<string, CacheEntry<any>> = new Map();
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  constructor() {
+    // Clean up expired entries every 5 minutes
+    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+  }
+
+  /**
+   * Set cache entry
+   */
+  set<T>(key: string, value: T, ttlSeconds: number = 300): void {
+    const expiresAt = Date.now() + ttlSeconds * 1000;
+    this.cache.set(key, { value, expiresAt });
+  }
+
+  /**
+   * Get cache entry
+   */
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+
+    if (!entry) {
+      return null;
+    }
+
+    // Check if expired
+    if (Date.now() > entry.expiresAt) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return entry.value as T;
+  }
+
+  /**
+   * Check if key exists
+   */
+  has(key: string): boolean {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+
+    if (Date.now() > entry.expiresAt) {
+      this.cache.delete(key);
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Delete cache entry
+   */
+  delete(key: string): void {
+    this.cache.delete(key);
+  }
+
+  /**
+   * Clear all cache
+   */
+  clear(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Clean up expired entries
+   */
+  private cleanup(): void {
+    const now = Date.now();
+    let cleaned = 0;
+
+    for (const [key, entry] of this.cache.entries()) {
+      if (now > entry.expiresAt) {
+        this.cache.delete(key);
+        cleaned++;
+      }
+    }
+
+    if (cleaned > 0) {
+      console.log(`[Cache] Cleaned up ${cleaned} expired entries`);
+    }
+  }
+
+  /**
+   * Get cache size
+   */
+  size(): number {
+    return this.cache.size;
+  }
+
+  /**
+   * Get cache stats
+   */
+  stats() {
+    return {
+      size: this.cache.size,
+      entries: Array.from(this.cache.entries()).map(([key, entry]) => ({
+        key,
+        expiresIn: Math.max(0, entry.expiresAt - Date.now()),
+      })),
+    };
+  }
+
+  /**
+   * Destroy cache
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+    this.cache.clear();
+  }
+}
+
+export default new Cache();

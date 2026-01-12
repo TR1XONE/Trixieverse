@@ -1,1 +1,175 @@
-/**\n * Security Middleware\n * Rate limiting, CSRF protection, and security headers\n */\n\nimport { Request, Response, NextFunction } from 'express';\nimport rateLimit from 'express-rate-limit';\nimport helmet from 'helmet';\nimport mongoSanitize from 'mongo-sanitize';\nimport ErrorHandler from './errorHandler.js';\n\n/**\n * Rate limiters\n */\n\n// General rate limiter\nexport const generalLimiter = rateLimit({\n  windowMs: 15 * 60 * 1000, // 15 minutes\n  max: 100, // 100 requests per windowMs\n  message: 'Too many requests from this IP, please try again later',\n  standardHeaders: true,\n  legacyHeaders: false,\n});\n\n// Auth rate limiter (stricter)\nexport const authLimiter = rateLimit({\n  windowMs: 15 * 60 * 1000, // 15 minutes\n  max: 5, // 5 requests per windowMs\n  message: 'Too many login attempts, please try again later',\n  skipSuccessfulRequests: true,\n});\n\n// API rate limiter\nexport const apiLimiter = rateLimit({\n  windowMs: 60 * 1000, // 1 minute\n  max: 30, // 30 requests per minute\n  message: 'Too many API requests, please try again later',\n});\n\n/**\n * Security headers\n */\nexport function securityHeaders(req: Request, res: Response, next: NextFunction) {\n  // Use helmet for security headers\n  helmet()(req, res, next);\n}\n\n/**\n * CSRF Protection\n */\nexport function csrfProtection(req: Request, res: Response, next: NextFunction) {\n  // Skip CSRF check for GET, HEAD, OPTIONS\n  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {\n    return next();\n  }\n\n  // Check CSRF token\n  const token = req.headers['x-csrf-token'] as string;\n  const sessionToken = req.session?.csrfToken;\n\n  if (!token || token !== sessionToken) {\n    return next(ErrorHandler.forbiddenError('Invalid CSRF token'));\n  }\n\n  next();\n}\n\n/**\n * Input sanitization\n */\nexport function sanitizeInput(req: Request, res: Response, next: NextFunction) {\n  // Sanitize request body\n  if (req.body) {\n    req.body = mongoSanitize()(req.body);\n  }\n\n  // Sanitize query parameters\n  if (req.query) {\n    req.query = mongoSanitize()(req.query);\n  }\n\n  next();\n}\n\n/**\n * SQL Injection prevention\n */\nexport function preventSQLInjection(req: Request, res: Response, next: NextFunction) {\n  const sqlKeywords = ['DROP', 'DELETE', 'INSERT', 'UPDATE', 'SELECT', 'UNION', 'EXEC', 'SCRIPT'];\n  const checkString = (str: string) => {\n    return sqlKeywords.some((keyword) => str.toUpperCase().includes(keyword));\n  };\n\n  // Check body\n  if (req.body) {\n    for (const [key, value] of Object.entries(req.body)) {\n      if (typeof value === 'string' && checkString(value)) {\n        return next(ErrorHandler.forbiddenError('Invalid input detected'));\n      }\n    }\n  }\n\n  // Check query\n  if (req.query) {\n    for (const [key, value] of Object.entries(req.query)) {\n      if (typeof value === 'string' && checkString(value)) {\n        return next(ErrorHandler.forbiddenError('Invalid input detected'));\n      }\n    }\n  }\n\n  next();\n}\n\n/**\n * XSS Prevention\n */\nexport function preventXSS(req: Request, res: Response, next: NextFunction) {\n  const xssPatterns = [\n    /<script[^>]*>.*?<\\/script>/gi,\n    /javascript:/gi,\n    /on\\w+\\s*=/gi,\n  ];\n\n  const checkString = (str: string) => {\n    return xssPatterns.some((pattern) => pattern.test(str));\n  };\n\n  // Check body\n  if (req.body) {\n    for (const [key, value] of Object.entries(req.body)) {\n      if (typeof value === 'string' && checkString(value)) {\n        return next(ErrorHandler.forbiddenError('Invalid input detected'));\n      }\n    }\n  }\n\n  next();\n}\n\n/**\n * CORS Configuration\n */\nexport const corsOptions = {\n  origin: process.env.FRONTEND_URL || 'http://localhost:5173',\n  credentials: true,\n  optionsSuccessStatus: 200,\n  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],\n  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],\n};\n\n/**\n * Security middleware chain\n */\nexport function applySecurityMiddleware(app: any) {\n  // Security headers\n  app.use(helmet());\n\n  // CORS\n  app.use(require('cors')(corsOptions));\n\n  // Rate limiting\n  app.use('/api/', generalLimiter);\n  app.use('/api/auth/login', authLimiter);\n  app.use('/api/auth/register', authLimiter);\n\n  // Input sanitization\n  app.use(sanitizeInput);\n\n  // XSS prevention\n  app.use(preventXSS);\n\n  // SQL injection prevention\n  app.use(preventSQLInjection);\n}\n
+/**
+ * Security Middleware
+ * Rate limiting, CSRF protection, and security headers
+ */
+
+import { Request, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import mongoSanitize from 'mongo-sanitize';
+import ErrorHandler from './errorHandler.js';
+
+/**
+ * Rate limiters
+ */
+
+// General rate limiter
+export const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Auth rate limiter (stricter)
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 requests per windowMs
+  message: 'Too many login attempts, please try again later',
+  skipSuccessfulRequests: true,
+});
+
+// API rate limiter
+export const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 requests per minute
+  message: 'Too many API requests, please try again later',
+});
+
+/**
+ * Security headers
+ */
+export function securityHeaders(req: Request, res: Response, next: NextFunction) {
+  // Use helmet for security headers
+  helmet()(req, res, next);
+}
+
+/**
+ * CSRF Protection
+ */
+export function csrfProtection(req: Request, res: Response, next: NextFunction) {
+  // Skip CSRF check for GET, HEAD, OPTIONS
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+
+  // Check CSRF token
+  const token = req.headers['x-csrf-token'] as string;
+  const sessionToken = req.session?.csrfToken;
+
+  if (!token || token !== sessionToken) {
+    return next(ErrorHandler.forbiddenError('Invalid CSRF token'));
+  }
+
+  next();
+}
+
+/**
+ * Input sanitization
+ */
+export function sanitizeInput(req: Request, res: Response, next: NextFunction) {
+  // Sanitize request body
+  if (req.body) {
+    req.body = mongoSanitize()(req.body);
+  }
+
+  // Sanitize query parameters
+  if (req.query) {
+    req.query = mongoSanitize()(req.query);
+  }
+
+  next();
+}
+
+/**
+ * SQL Injection prevention
+ */
+export function preventSQLInjection(req: Request, res: Response, next: NextFunction) {
+  const sqlKeywords = ['DROP', 'DELETE', 'INSERT', 'UPDATE', 'SELECT', 'UNION', 'EXEC', 'SCRIPT'];
+  const checkString = (str: string) => {
+    return sqlKeywords.some((keyword) => str.toUpperCase().includes(keyword));
+  };
+
+  // Check body
+  if (req.body) {
+    for (const [key, value] of Object.entries(req.body)) {
+      if (typeof value === 'string' && checkString(value)) {
+        return next(ErrorHandler.forbiddenError('Invalid input detected'));
+      }
+    }
+  }
+
+  // Check query
+  if (req.query) {
+    for (const [key, value] of Object.entries(req.query)) {
+      if (typeof value === 'string' && checkString(value)) {
+        return next(ErrorHandler.forbiddenError('Invalid input detected'));
+      }
+    }
+  }
+
+  next();
+}
+
+/**
+ * XSS Prevention
+ */
+export function preventXSS(req: Request, res: Response, next: NextFunction) {
+  const xssPatterns = [
+    /<script[^>]*>.*?<\/script>/gi,
+    /javascript:/gi,
+    /on\w+\s*=/gi,
+  ];
+
+  const checkString = (str: string) => {
+    return xssPatterns.some((pattern) => pattern.test(str));
+  };
+
+  // Check body
+  if (req.body) {
+    for (const [key, value] of Object.entries(req.body)) {
+      if (typeof value === 'string' && checkString(value)) {
+        return next(ErrorHandler.forbiddenError('Invalid input detected'));
+      }
+    }
+  }
+
+  next();
+}
+
+/**
+ * CORS Configuration
+ */
+export const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+};
+
+/**
+ * Security middleware chain
+ */
+export function applySecurityMiddleware(app: any) {
+  // Security headers
+  app.use(helmet());
+
+  // CORS
+  app.use(require('cors')(corsOptions));
+
+  // Rate limiting
+  app.use('/api/', generalLimiter);
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api/auth/register', authLimiter);
+
+  // Input sanitization
+  app.use(sanitizeInput);
+
+  // XSS prevention
+  app.use(preventXSS);
+
+  // SQL injection prevention
+  app.use(preventSQLInjection);
+}

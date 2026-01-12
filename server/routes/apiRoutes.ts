@@ -4,7 +4,7 @@
  */
 
 import { Router } from 'express';
-import authMiddleware from '../middleware/authMiddleware.js';
+import { verifyToken } from '../middleware/authMiddleware.js';
 import authRoutes from './authRoutes.js';
 import accountRoutes from './accountRoutes.js';
 import coachRoutes from './coachRoutes.js';
@@ -23,10 +23,10 @@ router.get('/health', (req, res) => {
 router.use('/auth', authRoutes);
 
 // Protected routes (auth required)
-router.use('/account', authMiddleware, accountRoutes);
-router.use('/coach', authMiddleware, coachRoutes);
-router.use('/gamification', authMiddleware, gamificationRoutes);
-router.use('/social', authMiddleware, socialRoutes);
-router.use('/analytics', authMiddleware, analyticsRoutes);
+router.use('/account', verifyToken, accountRoutes);
+router.use('/coach', verifyToken, coachRoutes);
+router.use('/gamification', verifyToken, gamificationRoutes);
+router.use('/social', verifyToken, socialRoutes);
+router.use('/analytics', verifyToken, analyticsRoutes);
 
 export default router;
