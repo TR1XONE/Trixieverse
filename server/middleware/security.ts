@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import mongoSanitize from 'mongo-sanitize';
+import cors from 'cors';
 import ErrorHandler from './errorHandler.js';
 
 /**
@@ -157,7 +158,8 @@ export function applySecurityMiddleware(app: any) {
   app.use(helmet());
 
   // CORS
-  app.use(require('cors')(corsOptions));
+  // Use dynamic import for ESM compatibility if needed, or just use the imported cors
+  app.use(cors(corsOptions));
 
   // Rate limiting
   app.use('/api/', generalLimiter);

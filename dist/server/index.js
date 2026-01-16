@@ -1,10 +1,3 @@
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
-});
-
 // server/index.ts
 import express3 from "express";
 import compression from "compression";
@@ -265,6 +258,7 @@ var errorHandler_default = ErrorHandler;
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import mongoSanitize from "mongo-sanitize";
+import cors from "cors";
 var generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1e3,
   // 15 minutes
@@ -346,7 +340,7 @@ var corsOptions = {
 };
 function applySecurityMiddleware(app2) {
   app2.use(helmet());
-  app2.use(__require("cors")(corsOptions));
+  app2.use(cors(corsOptions));
   app2.use("/api/", generalLimiter);
   app2.use("/api/auth/login", authLimiter);
   app2.use("/api/auth/register", authLimiter);
