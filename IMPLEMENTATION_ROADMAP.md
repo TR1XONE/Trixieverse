@@ -690,15 +690,15 @@ export default function FriendsSystem() {
 - [ ] Create coach profile page
 
 ### Week 3-4: Gamification
-- [ ] Create Achievement system component
+- [x] Create Achievement system component
 - [ ] Implement achievement tracking
-- [ ] Create Streak counter component
-- [ ] Implement XP system
-- [ ] Create level progression system
+- [x] Create Streak counter component
+- [x] Implement XP system
+- [x] Create level progression system
 - [ ] Add achievement notifications
 
 ### Week 5-6: Social Features
-- [ ] Create Friends system component
+- [x] Create Friends system component
 - [ ] Implement friend adding/removing
 - [ ] Create friend stats page
 - [ ] Implement social feed
