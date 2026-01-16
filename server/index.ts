@@ -34,6 +34,7 @@ import accountRoutes from './routes/accountRoutes.js';
 
 // Import services
 import logger from './utils/logger.js';
+import { initializeDatabase } from './database/initDb.js';
 
 // Initialize Express app
 const app: Express = express();
@@ -176,13 +177,21 @@ wss.on('connection', (ws) => {
 
 // ============ SERVER STARTUP ============
 
-server.listen(PORT, () => {
-  logger.info(`🚀 TrixieVerse Server running on port ${PORT}`);
-  logger.info(`📊 Environment: ${NODE_ENV}`);
-  logger.info(`🌐 WebSocket server ready`);
-  logger.info(`📚 API: http://localhost:${PORT}/api`);
-  logger.info(`🔧 Health: http://localhost:${PORT}/api/health`);
-});
+// Initialize database first, then start server
+initializeDatabase()
+  .then(() => {
+    server.listen(PORT, () => {
+      logger.info(`🚀 TrixieVerse Server running on port ${PORT}`);
+      logger.info(`📊 Environment: ${NODE_ENV}`);
+      logger.info(`🌐 WebSocket server ready`);
+      logger.info(`📚 API: http://localhost:${PORT}/api`);
+      logger.info(`🔧 Health: http://localhost:${PORT}/api/health`);
+    });
+  })
+  .catch((error) => {
+    logger.error('Failed to initialize database:', error);
+    process.exit(1);
+  });
 
 // ============ GRACEFUL SHUTDOWN ============
 

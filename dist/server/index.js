@@ -11,8 +11,8 @@ import compression from "compression";
 import { WebSocketServer } from "ws";
 import http from "http";
 import dotenv3 from "dotenv";
-import path2 from "path";
-import { fileURLToPath as fileURLToPath2 } from "url";
+import path3 from "path";
+import { fileURLToPath as fileURLToPath3 } from "url";
 
 // server/utils/logger.ts
 import fs from "fs";
@@ -488,14 +488,43 @@ var DatabaseService = class {
   pool = null;
   config;
   constructor() {
-    this.config = {
-      user: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "password",
-      host: process.env.DB_HOST || "localhost",
-      port: parseInt(process.env.DB_PORT || "5432"),
-      database: process.env.DB_NAME || "trixieverse",
-      ssl: process.env.DB_SSL === "true"
-    };
+    const user = process.env.DB_USER || process.env.PGUSER || "postgres";
+    const password = process.env.DB_PASSWORD || process.env.PGPASSWORD || "password";
+    const host = process.env.DB_HOST || process.env.PGHOST || "localhost";
+    const port = parseInt(process.env.DB_PORT || process.env.PGPORT || "5432");
+    const database = process.env.DB_NAME || process.env.PGDATABASE || "trixieverse";
+    if (process.env.DATABASE_URL) {
+      try {
+        const url = new URL(process.env.DATABASE_URL);
+        this.config = {
+          user: url.username || user,
+          password: url.password || password,
+          host: url.hostname || host,
+          port: parseInt(url.port || String(port)),
+          database: url.pathname.slice(1) || database,
+          ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+        };
+      } catch (error) {
+        console.warn("Failed to parse DATABASE_URL, using individual variables");
+        this.config = {
+          user,
+          password,
+          host,
+          port,
+          database,
+          ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+        };
+      }
+    } else {
+      this.config = {
+        user,
+        password,
+        host,
+        port,
+        database,
+        ssl: process.env.DB_SSL === "true" || process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+      };
+    }
   }
   /**
    * Initialize database connection pool
@@ -4044,9 +4073,55 @@ router8.get("/analytics", async (req, res) => {
 });
 var adminRoutes_default = router8;
 
-// server/index.ts
+// server/database/initDb.ts
+import fs2 from "fs";
+import path2 from "path";
+import { fileURLToPath as fileURLToPath2 } from "url";
 var __filename2 = fileURLToPath2(import.meta.url);
 var __dirname2 = path2.dirname(__filename2);
+async function initializeDatabase() {
+  try {
+    console.log("\u{1F504} Starting database initialization...");
+    await connection_default.connect();
+    console.log("\u2705 Connected to database");
+    const result = await connection_default.query(
+      `SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
+      )`
+    );
+    const tablesExist = result.rows[0].exists;
+    if (!tablesExist) {
+      console.log("\u{1F4CA} Tables not found, creating schema...");
+      const schemaPath = path2.join(__dirname2, "schema.sql");
+      const schema = fs2.readFileSync(schemaPath, "utf-8");
+      const statements = schema.split(";").map((stmt) => stmt.trim()).filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"));
+      let executedCount = 0;
+      for (const statement of statements) {
+        try {
+          await connection_default.query(statement);
+          executedCount++;
+        } catch (error) {
+          if (error.message && (error.message.includes("already exists") || error.message.includes("does not exist"))) {
+          } else {
+            console.error("Schema creation error:", error.message);
+          }
+        }
+      }
+      console.log(`\u2705 Database schema created! (${executedCount} statements executed)`);
+    } else {
+      console.log("\u2705 Database tables already exist");
+    }
+  } catch (error) {
+    console.error("\u274C Database initialization failed:", error);
+    throw error;
+  }
+}
+
+// server/index.ts
+var __filename3 = fileURLToPath3(import.meta.url);
+var __dirname3 = path3.dirname(__filename3);
 dotenv3.config();
 var app = express3();
 var PORT = process.env.PORT || 3e3;
@@ -4071,10 +4146,10 @@ app.use("/api", apiRoutes_default);
 app.use("/api/coach", coachRoutes_default);
 app.use("/api/account", accountRoutes_default);
 app.use("/api/admin", verifyToken, adminRoutes_default);
-var staticPath = path2.resolve(__dirname2, "..", "dist", "public");
+var staticPath = path3.resolve(__dirname3, "..", "dist", "public");
 app.use(express3.static(staticPath));
 app.get("*", (req, res) => {
-  res.sendFile(path2.join(staticPath, "index.html"));
+  res.sendFile(path3.join(staticPath, "index.html"));
 });
 app.use(errorHandler_default.notFound);
 app.use((err, req, res, next) => {
@@ -4137,12 +4212,17 @@ wss.on("connection", (ws) => {
     logger_default.error({ message: "WebSocket error", error });
   });
 });
-server.listen(PORT, () => {
-  logger_default.info(`\u{1F680} TrixieVerse Server running on port ${PORT}`);
-  logger_default.info(`\u{1F4CA} Environment: ${NODE_ENV}`);
-  logger_default.info(`\u{1F310} WebSocket server ready`);
-  logger_default.info(`\u{1F4DA} API: http://localhost:${PORT}/api`);
-  logger_default.info(`\u{1F527} Health: http://localhost:${PORT}/api/health`);
+initializeDatabase().then(() => {
+  server.listen(PORT, () => {
+    logger_default.info(`\u{1F680} TrixieVerse Server running on port ${PORT}`);
+    logger_default.info(`\u{1F4CA} Environment: ${NODE_ENV}`);
+    logger_default.info(`\u{1F310} WebSocket server ready`);
+    logger_default.info(`\u{1F4DA} API: http://localhost:${PORT}/api`);
+    logger_default.info(`\u{1F527} Health: http://localhost:${PORT}/api/health`);
+  });
+}).catch((error) => {
+  logger_default.error("Failed to initialize database:", error);
+  process.exit(1);
 });
 process.on("SIGTERM", () => {
   logger_default.info("SIGTERM signal received: closing HTTP server");

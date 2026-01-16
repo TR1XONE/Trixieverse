@@ -15,7 +15,7 @@ interface DatabaseConfig {
   host: string;
   port: number;
   database: string;
-  ssl?: boolean;
+  ssl?: boolean | { rejectUnauthorized: boolean };
 }
 
 class DatabaseService {
@@ -23,14 +23,46 @@ class DatabaseService {
   private config: DatabaseConfig;
 
   constructor() {
-    this.config = {
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'password',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'trixieverse',
-      ssl: process.env.DB_SSL === 'true',
-    };
+    // Support both custom DB variables and Railway's standard variables
+    const user = process.env.DB_USER || process.env.PGUSER || 'postgres';
+    const password = process.env.DB_PASSWORD || process.env.PGPASSWORD || 'password';
+    const host = process.env.DB_HOST || process.env.PGHOST || 'localhost';
+    const port = parseInt(process.env.DB_PORT || process.env.PGPORT || '5432');
+    const database = process.env.DB_NAME || process.env.PGDATABASE || 'trixieverse';
+    
+    // Railway uses DATABASE_URL, parse it if available
+    if (process.env.DATABASE_URL) {
+      try {
+        const url = new URL(process.env.DATABASE_URL);
+        this.config = {
+          user: url.username || user,
+          password: url.password || password,
+          host: url.hostname || host,
+          port: parseInt(url.port || String(port)),
+          database: url.pathname.slice(1) || database,
+          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        };
+      } catch (error) {
+        console.warn('Failed to parse DATABASE_URL, using individual variables');
+        this.config = {
+          user,
+          password,
+          host,
+          port,
+          database,
+          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        };
+      }
+    } else {
+      this.config = {
+        user,
+        password,
+        host,
+        port,
+        database,
+        ssl: process.env.DB_SSL === 'true' || process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      };
+    }
   }
 
   /**
