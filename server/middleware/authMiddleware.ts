@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import authService from '../services/authService.js';
+import authService from '../services/authService';
 
 export interface AuthRequest extends Request {
   userId?: string;

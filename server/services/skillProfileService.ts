@@ -3,7 +3,7 @@
  * Calculates and manages the 5D Skill Radar
  */
 
-import db from '../database/connection.js';
+import db from '../database/connection';
 
 export interface SkillProfile {
   mechanicsScore: number;

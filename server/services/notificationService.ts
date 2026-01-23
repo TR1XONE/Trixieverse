@@ -4,7 +4,7 @@
  */
 
 import nodemailer from 'nodemailer';
-import db from '../database/connection.js';
+import db from '../database/connection';
 import dotenv from 'dotenv';
 
 dotenv.config();

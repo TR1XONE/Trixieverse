@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import cache from '../utils/cache.js';
+import cache from '../utils/cache';
 
 interface CachedRequest extends Request {
   cacheKey?: string;

@@ -3,7 +3,7 @@
  * Handles achievements, badges, streaks, XP, and leaderboards
  */
 
-import db from '../database/connection.js';
+import db from '../database/connection';
 
 interface Achievement {
   id: string;

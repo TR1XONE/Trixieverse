@@ -2,7 +2,7 @@
  * Admin Service\n * Handles admin operations, moderation, and analytics
  */
 
-import db from '../database/connection.js';
+import db from '../database/connection';
 
 interface AdminStats {
   totalUsers: number;

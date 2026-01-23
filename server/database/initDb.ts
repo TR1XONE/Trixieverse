@@ -3,13 +3,9 @@
  * Automatically creates tables and schema on startup
  */
 
-import db from './connection.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import db from './connection';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * Initialize database with schema on startup
@@ -37,7 +33,7 @@ export async function initializeDatabase(): Promise<void> {
       console.log('📊 Tables not found, creating schema...');
       
       // Read schema.sql
-      const schemaPath = path.join(__dirname, 'schema.sql');
+      const schemaPath = path.join(process.cwd(), 'server', 'database', 'schema.sql');
       const schema = fs.readFileSync(schemaPath, 'utf-8');
 
       // Split by semicolon and filter empty statements

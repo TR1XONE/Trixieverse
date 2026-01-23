@@ -4,8 +4,8 @@
  */
 
 import express, { Router, Request, Response } from 'express';
-import authService from '../services/authService.js';
-import { verifyToken, AuthRequest } from '../middleware/authMiddleware.js';
+import authService from '../services/authService';
+import { verifyToken, AuthRequest } from '../middleware/authMiddleware';
 
 const router = Router();
 

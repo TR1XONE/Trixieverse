@@ -4,13 +4,15 @@
  */
 
 import { Router } from 'express';
-import { verifyToken } from '../middleware/authMiddleware.js';
+import { verifyToken } from '../middleware/authMiddleware';
 import authRoutes from './authRoutes.js';
 import accountRoutes from './accountRoutes.js';
 import coachRoutes from './coachRoutes.js';
-import gamificationRoutes from './gamificationRoutes.js';
-import socialRoutes from './socialRoutes.js';
-import analyticsRoutes from './analyticsRoutes.js';
+import gamificationRoutes from './gamificationRoutes';
+import socialRoutes from './socialRoutes';
+import analyticsRoutes from './analyticsRoutes';
+import achievementRoutes from './achievementRoutes';
+import matchRoutes from './matchRoutes';
 
 const router = Router();
 
@@ -28,5 +30,7 @@ router.use('/coach', verifyToken, coachRoutes);
 router.use('/gamification', verifyToken, gamificationRoutes);
 router.use('/social', verifyToken, socialRoutes);
 router.use('/analytics', verifyToken, analyticsRoutes);
+router.use('/achievements', achievementRoutes);
+router.use('/matches', verifyToken, matchRoutes);
 
 export default router;

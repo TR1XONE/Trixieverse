@@ -2,8 +2,8 @@
  * Analytics API Routes\n */
 
 import { Router, Request, Response } from 'express';
-import skillProfileService from '../services/skillProfileService.js';
-import matchAnalysisService from '../services/matchAnalysisService.js';
+import skillProfileService from '../services/skillProfileService';
+import matchAnalysisService from '../services/matchAnalysisService';
 
 const router = Router();
 

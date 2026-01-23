@@ -20,21 +20,21 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 // Import middleware
-import requestLogger from './middleware/requestLogger.js';
-import ErrorHandler from './middleware/errorHandler.js';
-import { applySecurityMiddleware } from './middleware/security.js';
-import { cacheMiddleware, cacheInvalidationMiddleware } from './middleware/cacheMiddleware.js';
-import { verifyToken } from './middleware/authMiddleware.js';
+import requestLogger from './middleware/requestLogger';
+import ErrorHandler from './middleware/errorHandler';
+import { applySecurityMiddleware } from './middleware/security';
+import { cacheMiddleware, cacheInvalidationMiddleware } from './middleware/cacheMiddleware';
+import { verifyToken } from './middleware/authMiddleware';
 
 // Import routes
-import apiRoutes from './routes/apiRoutes.js';
-import adminRoutes from './routes/adminRoutes.js';
-import coachRoutes from './routes/coachRoutes.js';
-import accountRoutes from './routes/accountRoutes.js';
+import apiRoutes from './routes/apiRoutes';
+import adminRoutes from './routes/adminRoutes';
+import coachRoutes from './routes/coachRoutes';
+import accountRoutes from './routes/accountRoutes';
 
 // Import services
-import logger from './utils/logger.js';
-import { initializeDatabase } from './database/initDb.js';
+import logger from './utils/logger';
+import { initializeDatabase } from './database/initDb';
 
 // Initialize Express app
 const app: Express = express();

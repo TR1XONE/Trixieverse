@@ -3,7 +3,7 @@
  * Handles friends, coaching circles, and social interactions
  */
 
-import db from '../database/connection.js';
+import db from '../database/connection';
 
 interface Friend {
   id: string;

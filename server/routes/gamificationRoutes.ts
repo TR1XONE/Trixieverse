@@ -3,7 +3,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import gamificationService from '../services/gamificationService.js';
+import gamificationService from '../services/gamificationService';
 
 const router = Router();
 

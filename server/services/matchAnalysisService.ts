@@ -3,7 +3,7 @@
  * Analyzes matches and extracts insights for coaching
  */
 
-import db from '../database/connection.js';
+import db from '../database/connection';
 import coachLearningService from './coachLearningService.js';
 
 interface MatchAnalysis {

@@ -3,7 +3,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import adminService from '../services/adminService.js';
+import adminService from '../services/adminService';
 
 const router = Router();
 

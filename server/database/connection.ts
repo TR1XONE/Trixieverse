@@ -3,9 +3,9 @@
  * Handles all database operations for TrixieVerse
  */
 
-import pkg from 'pg';
+import * as pkg from 'pg';
 const { Pool } = pkg;
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -19,7 +19,7 @@ interface DatabaseConfig {
 }
 
 class DatabaseService {
-  private pool: pkg.Pool | null = null;
+  private pool: any = null;
   private config: DatabaseConfig;
 
   constructor() {

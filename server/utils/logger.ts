@@ -3,12 +3,11 @@
  * Centralized logging for the application
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import * as fs from 'fs';
+import * as path from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Support both ESM and CJS for __dirname
+const __dirname = path.resolve();
 
 interface LogEntry {
   timestamp: string;
@@ -22,7 +21,7 @@ class Logger {
   private maxLogSize: number = 10 * 1024 * 1024; // 10MB
 
   constructor() {
-    this.logDir = path.join(__dirname, '../../logs');
+    this.logDir = path.join(process.cwd(), 'logs');
     this.ensureLogDir();
   }
 

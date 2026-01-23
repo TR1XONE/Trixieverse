@@ -3,7 +3,7 @@
  */
 
 import express, { Router, Request, Response } from 'express';
-import mockOpggService from '../services/mockOpggService.js';
+import mockOpggService from '../services/mockOpggService';
 
 const router = Router();
 

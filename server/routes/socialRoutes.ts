@@ -3,7 +3,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import socialService from '../services/socialService.js';
+import socialService from '../services/socialService';
 
 const router = Router();
 
