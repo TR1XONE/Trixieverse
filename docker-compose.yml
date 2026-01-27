@@ -1,1 +1,70 @@
-version: '3.8'\n\nservices:\n  postgres:\n    image: postgres:16-alpine\n    container_name: trixieverse-db\n    environment:\n      POSTGRES_DB: trixieverse\n      POSTGRES_USER: trixieverse\n      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}\n    ports:\n      - \"5432:5432\"\n    volumes:\n      - postgres_data:/var/lib/postgresql/data\n      - ./server/database/schema.sql:/docker-entrypoint-initdb.d/init.sql\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U trixieverse\"]\n      interval: 10s\n      timeout: 5s\n      retries: 5\n\n  redis:\n    image: redis:7-alpine\n    container_name: trixieverse-cache\n    ports:\n      - \"6379:6379\"\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 10s\n      timeout: 5s\n      retries: 5\n\n  backend:\n    build:\n      context: .\n      dockerfile: Dockerfile\n    container_name: trixieverse-api\n    environment:\n      NODE_ENV: development\n      DATABASE_URL: postgresql://trixieverse:${DB_PASSWORD:-dev_password}@postgres:5432/trixieverse\n      REDIS_URL: redis://redis:6379\n      JWT_SECRET: ${JWT_SECRET:-dev_secret_key_change_in_production}\n      FRONTEND_URL: http://localhost:5173\n    ports:\n      - \"3000:3000\"\n    depends_on:\n      postgres:\n        condition: service_healthy\n      redis:\n        condition: service_healthy\n    volumes:\n      - ./server:/app/server\n    command: npm run dev\n\n  frontend:\n    image: node:22-alpine\n    container_name: trixieverse-web\n    working_dir: /app\n    environment:\n      VITE_API_URL: http://localhost:3000/api\n    ports:\n      - \"5173:5173\"\n    volumes:\n      - ./client:/app\n    command: sh -c \"npm install && npm run dev\"\n    depends_on:\n      - backend\n\nvolumes:\n  postgres_data:\n\nnetworks:\n  default:\n    name: trixieverse-network\n
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: trixieverse-db
+    environment:
+      POSTGRES_DB: trixieverse
+      POSTGRES_USER: trixieverse
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/database/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trixieverse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: trixieverse-cache
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trixieverse-api
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://trixieverse:${DB_PASSWORD:-dev_password}@postgres:5432/trixieverse
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev_secret_key_change_in_production}
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./server:/app/server
+    command: npm run dev
+
+  frontend:
+    image: node:22-alpine
+    container_name: trixieverse-web
+    working_dir: /app
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client:/app
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+
+
