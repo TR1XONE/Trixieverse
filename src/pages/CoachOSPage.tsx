@@ -1,22 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCoach } from '@/contexts/CoachContext';
+import { useAuth } from '@/contexts/AuthContext';
 import SkillRadar from '@/components/SkillRadar';
 import FlowStateIndicator from '@/components/FlowStateIndicator';
 import MemoryMomentsDisplay from '@/components/MemoryMomentsDisplay';
+import AchievementBadges from '@/components/AchievementBadges';
+import StreakTracker from '@/components/StreakTracker';
 import CoachOS, { CoachOSState, MemoryMoment } from '@/systems/CoachOS';
+import { AchievementSystem } from '@/systems/AchievementSystem';
 import { Sparkles } from 'lucide-react';
 
 export default function CoachOSPage() {
   const { t } = useLanguage();
   const { userProfile, coachPersonality } = useCoach();
+  const { user } = useAuth();
   const [coachOS, setCoachOS] = useState<CoachOS | null>(null);
   const [state, setState] = useState<CoachOSState | null>(null);
+  const [achievements, setAchievements] = useState<any>(null);
+  const [streak, setStreak] = useState({ current: 0, best: 0 });
 
   useEffect(() => {
+    // Use authenticated user ID if available, fall back to userProfile ID
+    const userId = user?.id || userProfile?.id || 'player_default';
+
     // Initialize CoachOS
-    const os = new CoachOS(userProfile?.id || 'player_default');
+    const os = new CoachOS(userId);
     os.loadFromLocalStorage();
+
+    // Initialize Achievement System
+    const achievementSystem = new AchievementSystem(userId);
 
     // Add some demo memory moments if none exist
     if (os.getState().memoryMoments.length === 0) {
@@ -58,6 +71,18 @@ export default function CoachOSPage() {
         emotionalWeight: 60,
         coachReaction: 'Good learning moment. Vision control wins games!',
       });
+
+      // Record a demo win to trigger achievement system
+      achievementSystem.recordWin();
+      achievementSystem.recordWin();
+      achievementSystem.recordWin();
+      achievementSystem.updateSkillProgress({
+        mechanics: 72,
+        macro: 65,
+        decisionMaking: 78,
+        consistency: 70,
+        clutch: 85,
+      });
     }
 
     // Update skill profile with demo data
@@ -82,7 +107,9 @@ export default function CoachOSPage() {
 
     setCoachOS(os);
     setState(os.getState());
-  }, [userProfile?.id]);
+    setAchievements(achievementSystem.getAchievements());
+    setStreak(achievementSystem.getStreak());
+  }, [user?.id, userProfile?.id]);
 
   if (!state || !coachOS) {
     return (
@@ -152,6 +179,30 @@ export default function CoachOSPage() {
         moments={state.memoryMoments}
         coachName={coachPersonality.name}
       />
+
+      {/* Streak Tracker */}
+      {streak && (
+        <div className="coaching-card p-6 bg-gradient-to-br from-yellow-600/10 to-red-600/10 border-2 border-yellow-500/30">
+          <h3 className="text-2xl font-bold text-foreground mb-6 uppercase tracking-wider">
+            🔥 Win Streaks
+          </h3>
+          <StreakTracker
+            current={streak.current}
+            best={streak.best}
+            lastUpdate={new Date()}
+          />
+        </div>
+      )}
+
+      {/* Achievements */}
+      {achievements && achievements.length > 0 && (
+        <div className="coaching-card p-6 bg-gradient-to-br from-purple-600/10 to-pink-600/10 border-2 border-purple-500/30">
+          <h3 className="text-2xl font-bold text-foreground mb-6 uppercase tracking-wider">
+            🏆 Achievements
+          </h3>
+          <AchievementBadges achievements={achievements} />
+        </div>
+      )}
 
       {/* Personality Evolution Info */}
       <div className="coaching-card p-6 bg-gradient-to-br from-orange-600/10 to-yellow-600/10 border-2 border-orange-500/30 neon-glow">

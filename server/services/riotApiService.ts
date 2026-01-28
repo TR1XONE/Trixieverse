@@ -1,13 +1,14 @@
 /**
- * Riot Games API Service
- * Integrates with Riot API for Wild Rift data
- * Falls back to op.gg if Riot API is unavailable
+ * Riot Wild Rift API Service
+ * Handles all communication with Riot's Wild Rift API
+ * Documentation: https://developer.riotgames.com/docs/wild-rift
  */
 
-import axios, { AxiosInstance } from 'axios';
-import dotenv from 'dotenv';
+import axios, { AxiosInstance, AxiosError } from 'axios';
+import logger from '../utils/logger';
 
-dotenv.config();
+// Rate limiter to respect Riot's limits
+const RATE_LIMIT_MS = 100; // 100ms between requests
 
 interface RiotPlayer {
   puuid: string;
@@ -173,140 +174,194 @@ interface RiotParticipant {
   win: boolean;
 }
 
-class RiotApiService {
-  private riotClient: AxiosInstance;
+class RiotAPIService {
   private apiKey: string;
-  private baseUrl = 'https://americas.api.riotgames.com';
-  private wildriftRegion = 'na1'; // Wild Rift region
+  private baseUrl = 'https://wr.api.riotgames.com';
+  private client: AxiosInstance;
+  private lastRequestTime = 0;
 
   constructor() {
     this.apiKey = process.env.RIOT_API_KEY || '';
 
-    this.riotClient = axios.create({
+    this.client = axios.create({
       baseURL: this.baseUrl,
       headers: {
         'X-Riot-Token': this.apiKey,
       },
+      timeout: 10000,
     });
-  }
 
-  /**
-   * Search for a player by game name and tag
-   */
-  async searchPlayer(gameName: string, tag: string): Promise<RiotPlayer | null> {
-    try {
-      if (!this.apiKey) {
-        console.warn('Riot API key not configured');
-        return null;
-      }
-
-      const response = await this.riotClient.get('/riot/account/v1/accounts/by-riot-id', {
-        params: {
-          gameName,
-          tagLine: tag,
-        },
-      });
-
-      return response.data;
-    } catch (error) {
-      console.warn('Riot API search player error:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Get player ranked data
-   */
-  async getPlayerRankedData(summonerId: string): Promise<RiotRankedData | null> {
-    try {
-      if (!this.apiKey) {
-        console.warn('Riot API key not configured');
-        return null;
-      }
-
-      const response = await this.riotClient.get(
-        `/lol/league/v4/entries/by-summoner/${summonerId}`,
-        {
-          baseURL: `https://${this.wildriftRegion}.api.riotgames.com`,
+    // Add response interceptor for error handling
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error: AxiosError) => {
+        if (error.response?.status === 429) {
+          logger.warn('Riot API rate limited', {
+            retryAfter: error.response.headers['retry-after'],
+          });
+        } else if (error.response?.status === 404) {
+          logger.debug('Riot API 404 - resource not found');
+        } else {
+          logger.error('Riot API error', {
+            status: error.response?.status,
+            message: error.message,
+          });
         }
-      );
-
-      // Return solo queue data
-      return response.data.find((entry: RiotRankedData) => entry.queueType === 'RANKED_SOLO_5x5') || response.data[0];
-    } catch (error) {
-      console.warn('Riot API get ranked data error:', error);
-      return null;
-    }
+        return Promise.reject(error);
+      }
+    );
   }
 
   /**
-   * Get recent matches
+   * Rate limiter - respect Riot's rate limits
+   * Prevents hitting rate limit caps
    */
-  async getRecentMatches(puuid: string, count: number = 20): Promise<string[] | null> {
-    try {
-      if (!this.apiKey) {
-        console.warn('Riot API key not configured');
-        return null;
-      }
+  private async respectRateLimit() {
+    const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+    if (timeSinceLastRequest < RATE_LIMIT_MS) {
+      const waitTime = RATE_LIMIT_MS - timeSinceLastRequest;
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+    }
+    this.lastRequestTime = Date.now();
+  }
 
-      const response = await this.riotClient.get(
-        `/lol/match/v5/matches/by-puuid/${puuid}/ids`,
-        {
-          params: {
-            start: 0,
-            count,
-          },
-        }
+  /**
+   * Get account by game name and tag
+   * GET /api/account/v1/accounts/by-game-name/{gameName}/{tagLine}
+   */
+  async getAccountByGameName(gameName: string, tagLine: string): Promise<any> {
+    if (!this.apiKey) {
+      throw new Error('RIOT_API_KEY not configured');
+    }
+
+    try {
+      await this.respectRateLimit();
+
+      const response = await this.client.get(
+        `/api/account/v1/accounts/by-game-name/${encodeURIComponent(
+          gameName
+        )}/${encodeURIComponent(tagLine)}`
       );
 
       return response.data;
-    } catch (error) {
-      console.warn('Riot API get recent matches error:', error);
-      return null;
+    } catch (error: any) {
+      logger.error('Failed to get account by game name', {
+        gameName,
+        tagLine,
+        status: error.response?.status,
+        error: error.message,
+      });
+      throw error;
     }
   }
 
   /**
-   * Get match details
+   * Get match IDs by PUUID
+   * GET /api/match-history/v1/matches/by-puuid/{puuid}/start/{start}/count/{count}
    */
-  async getMatchDetails(matchId: string): Promise<RiotMatch | null> {
-    try {
-      if (!this.apiKey) {
-        console.warn('Riot API key not configured');
-        return null;
-      }
+  async getMatchIdsByPuuid(
+    puuid: string,
+    start = 0,
+    count = 20
+  ): Promise<string[]> {
+    if (!this.apiKey) {
+      throw new Error('RIOT_API_KEY not configured');
+    }
 
-      const response = await this.riotClient.get(`/lol/match/v5/matches/${matchId}`);
+    try {
+      await this.respectRateLimit();
+
+      const response = await this.client.get(
+        `/api/match-history/v1/matches/by-puuid/${puuid}/start/${start}/count/${count}`
+      );
+
+      return response.data || [];
+    } catch (error: any) {
+      logger.error('Failed to get match IDs', {
+        puuid,
+        status: error.response?.status,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get match details by match ID
+   * GET /api/match-history/v1/matches/{matchId}
+   */
+  async getMatchById(matchId: string): Promise<any> {
+    if (!this.apiKey) {
+      throw new Error('RIOT_API_KEY not configured');
+    }
+
+    try {
+      await this.respectRateLimit();
+
+      const response = await this.client.get(
+        `/api/match-history/v1/matches/${matchId}`
+      );
 
       return response.data;
-    } catch (error) {
-      console.warn('Riot API get match details error:', error);
-      return null;
+    } catch (error: any) {
+      logger.error('Failed to get match details', {
+        matchId,
+        status: error.response?.status,
+        error: error.message,
+      });
+      throw error;
     }
   }
 
   /**
-   * Check if API is available
+   * Get ranked stats by PUUID
+   * GET /api/ranked/v1/ranked-stats/by-puuid/{puuid}
    */
-  async isAvailable(): Promise<boolean> {
+  async getRankedStatsByPuuid(puuid: string): Promise<any> {
+    if (!this.apiKey) {
+      throw new Error('RIOT_API_KEY not configured');
+    }
+
     try {
-      if (!this.apiKey) {
-        return false;
-      }
+      await this.respectRateLimit();
 
-      // Try a simple request to check if API is available
-      await this.riotClient.get('/riot/account/v1/accounts/by-riot-id', {
-        params: {
-          gameName: 'test',
-          tagLine: 'test',
-        },
+      const response = await this.client.get(
+        `/api/ranked/v1/ranked-stats/by-puuid/${puuid}`
+      );
+
+      return response.data;
+    } catch (error: any) {
+      logger.error('Failed to get ranked stats', {
+        puuid,
+        status: error.response?.status,
+        error: error.message,
       });
+      throw error;
+    }
+  }
 
+  /**
+   * Health check - verify API connectivity and key validity
+   */
+  async healthCheck(): Promise<boolean> {
+    if (!this.apiKey) {
+      logger.warn('RIOT_API_KEY not configured');
+      return false;
+    }
+
+    try {
+      await this.respectRateLimit();
+      // Simple request to verify connectivity and key validity
+      await this.client.get('/');
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      logger.warn('Riot API health check failed', {
+        status: error.response?.status,
+        error: error.message,
+      });
       return false;
     }
   }
 }
 
-export default new RiotApiService();
+export default new RiotAPIService();

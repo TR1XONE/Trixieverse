@@ -2,19 +2,21 @@ import React, { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mail, Lock, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Mail, Lock, User, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [, navigate] = useLocation();
   const { t } = useLanguage();
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   const [formData, setFormData] = useState({
     email: '',
+    username: '',
     password: '',
+    confirmPassword: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,18 +31,35 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    // Validation
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (!formData.username.trim()) {
+      setError('Username is required');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password);
-      setSuccess('Login successful!');
+      await signup(formData.email, formData.username, formData.password);
+      setSuccess('Account created successfully!');
       
       // Redirect to dashboard
       setTimeout(() => {
         navigate('/');
       }, 500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Signup failed');
     } finally {
       setLoading(false);
     }
@@ -54,7 +73,7 @@ export default function LoginPage() {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
       </div>
 
-      {/* Login Card */}
+      {/* Signup Card */}
       <div className="relative w-full max-w-md">
         <div className="coaching-card p-8 bg-gradient-to-br from-slate-900/80 to-blue-900/40 border-2 border-cyan-500/30 neon-glow">
           {/* Header */}
@@ -63,7 +82,7 @@ export default function LoginPage() {
               ⚔️ TRIXIEVERSE
             </div>
             <p className="text-muted-foreground uppercase tracking-wider text-sm">
-              Welcome Back, Champion
+              Join the Legend
             </p>
           </div>
 
@@ -89,6 +108,26 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Username */}
+            <div>
+              <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
+                Username
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 w-5 h-5 text-cyan-400/50" />
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="your_username"
+                  className="w-full pl-10 pr-4 py-2 rounded-sm bg-slate-900/50 border border-cyan-500/30 text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30"
+                  disabled={loading}
+                  required
+                />
+              </div>
+            </div>
+
             {/* Password */}
             <div>
               <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
@@ -100,6 +139,27 @@ export default function LoginPage() {
                   type="password"
                   name="password"
                   value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-2 rounded-sm bg-slate-900/50 border border-cyan-500/30 text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30"
+                  disabled={loading}
+                  required
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Minimum 6 characters</p>
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 w-5 h-5 text-cyan-400/50" />
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
                   onChange={handleChange}
                   placeholder="••••••••"
                   className="w-full pl-10 pr-4 py-2 rounded-sm bg-slate-900/50 border border-cyan-500/30 text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30"
@@ -134,10 +194,10 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Logging in...
+                  Creating account...
                 </>
               ) : (
-                'LOGIN'
+                'CREATE ACCOUNT'
               )}
             </button>
           </form>
@@ -145,12 +205,12 @@ export default function LoginPage() {
           {/* Toggle */}
           <div className="mt-6 text-center">
             <p className="text-muted-foreground text-sm">
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <button
-                onClick={() => navigate('/signup')}
+                onClick={() => navigate('/login')}
                 className="text-cyan-400 hover:text-cyan-300 font-bold uppercase tracking-wider"
               >
-                Register
+                Login
               </button>
             </p>
           </div>
@@ -158,7 +218,7 @@ export default function LoginPage() {
           {/* Demo Info */}
           <div className="mt-6 p-3 rounded-sm bg-cyan-500/10 border border-cyan-500/20">
             <p className="text-xs text-cyan-400/80">
-              💡 Demo: Use any email and password to test
+              💡 Demo: Create any account to test the auth system
             </p>
           </div>
         </div>

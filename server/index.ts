@@ -19,6 +19,11 @@ const __dirname = path.dirname(__filename);
 // Load environment variables
 dotenv.config();
 
+// Initialize Sentry FIRST - before everything else
+import { initializeSentry } from './utils/sentry';
+initializeSentry();
+import * as Sentry from '@sentry/node';
+
 // Import middleware
 import requestLogger from './middleware/requestLogger';
 import ErrorHandler from './middleware/errorHandler';
@@ -31,10 +36,13 @@ import apiRoutes from './routes/apiRoutes';
 import adminRoutes from './routes/adminRoutes';
 import coachRoutes from './routes/coachRoutes';
 import accountRoutes from './routes/accountRoutes';
+import matchSyncRoutes from './routes/matchSyncRoutes';
+import blueprintRoutes from './routes/blueprintRoutes';
 
 // Import services
 import logger from './utils/logger';
 import { initializeDatabase } from './database/initDb';
+import HealthCheck from './utils/health';
 
 // Initialize Express app
 const app: Express = express();
@@ -46,6 +54,9 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 // ============ MIDDLEWARE ============
+
+// Sentry request handler FIRST
+app.use(Sentry.Handlers.requestHandler());
 
 // Security middleware
 applySecurityMiddleware(app);
@@ -65,18 +76,31 @@ app.use(cacheInvalidationMiddleware);
 
 // ============ ROUTES ============
 
-// Health check
-app.get('/api/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: NODE_ENV,
-    uptime: process.uptime(),
+// Health check - basic
+app.get('/api/health', async (req: Request, res: Response) => {
+  const health = await HealthCheck.fullHealthCheck();
+  const statusCode = health.status === 'unhealthy' ? 503 : 200;
+  res.status(statusCode).json(health);
+});
+
+// Health check - quick
+app.get('/api/health/quick', async (req: Request, res: Response) => {
+  const dbHealth = await HealthCheck.checkDatabase();
+  const statusCode = dbHealth.status ? 200 : 503;
+  res.status(statusCode).json({
+    status: dbHealth.status ? 'ok' : 'down',
+    responseTime: dbHealth.responseTime,
   });
 });
 
 // Main API routes
 app.use('/api', apiRoutes);
+
+// Match sync routes
+app.use('/api/matches', matchSyncRoutes);
+
+// Blueprint routes (predictive rank climbing)
+app.use('/api/blueprint', blueprintRoutes);
 
 // Legacy routes (for backward compatibility)
 app.use('/api/coach', coachRoutes);
@@ -96,6 +120,9 @@ app.get('*', (req: Request, res: Response) => {
 });
 
 // ============ ERROR HANDLING ============
+
+// Sentry error handler (MUST be before other error handlers)
+app.use(Sentry.Handlers.errorHandler());
 
 // 404 handler
 app.use(ErrorHandler.notFound);
