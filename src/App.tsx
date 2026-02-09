@@ -15,6 +15,7 @@ import AccountSettingsPage from "@/pages/AccountSettingsPage";
 import UserProfilePage from "@/pages/UserProfilePage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
+import DiscordCallbackPage from "@/pages/DiscordCallbackPage";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -25,6 +26,7 @@ function Router() {
       {/* Public Routes */}
       <Route path={"/login"} component={LoginPage} />
       <Route path={"/signup"} component={SignupPage} />
+      <Route path={"/discord/callback"} component={DiscordCallbackPage} />
       
       {/* Protected Routes */}
       <Route path={"/"}>

@@ -5,8 +5,10 @@
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import type { Secret, SignOptions } from 'jsonwebtoken';
 import db from '../database/connection';
 import dotenv from 'dotenv';
+import { randomUUID } from 'crypto';
 
 dotenv.config();
 
@@ -29,10 +31,33 @@ interface TokenPair {
 }
 
 class AuthService {
-  private jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-  private refreshSecret = process.env.REFRESH_SECRET || 'your-refresh-secret-change-in-production';
-  private accessTokenExpiry = '15m';
-  private refreshTokenExpiry = '7d';
+  private jwtSecret: Secret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+  private refreshSecret: Secret =
+    process.env.REFRESH_SECRET ||
+    process.env.JWT_REFRESH_SECRET ||
+    'your-refresh-secret-change-in-production';
+  private accessTokenExpiry: SignOptions['expiresIn'] = '15m';
+  private refreshTokenExpiry: SignOptions['expiresIn'] = '7d';
+
+  private async generateUniqueUsername(base: string): Promise<string> {
+    const normalized = (base || 'discord_user')
+      .trim()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_\-]/g, '')
+      .slice(0, 24);
+
+    const prefix = normalized.length > 0 ? normalized : 'discord_user';
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate =
+        attempt === 0 ? prefix : `${prefix}_${Math.random().toString(16).slice(2, 6)}`;
+
+      const existing = await db.query('SELECT id FROM users WHERE username = $1', [candidate]);
+      if (existing.rows.length === 0) return candidate;
+    }
+
+    return `${prefix}_${Date.now()}`.slice(0, 32);
+  }
 
   /**
    * Register a new user
@@ -65,6 +90,73 @@ class AuthService {
       console.error('Registration error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Login / register using Discord OAuth identity.
+   * Links by discord_id first, then falls back to matching existing user by email.
+   */
+  async loginWithDiscord(params: {
+    discordId: string;
+    email: string;
+    username: string;
+  }): Promise<{ user: User; tokens: TokenPair }> {
+    const { discordId, email, username } = params;
+    if (!discordId) throw new Error('Missing Discord ID');
+    if (!email) throw new Error('Discord account email is required');
+
+    // 1) Try find by discord_id
+    const byDiscord = await db.query(
+      'SELECT id, email, username, created_at FROM users WHERE discord_id = $1 AND is_active = true',
+      [discordId]
+    );
+
+    let userRow = byDiscord.rows[0];
+
+    // 2) Else, try link by email
+    if (!userRow) {
+      const byEmail = await db.query(
+        'SELECT id, email, username, created_at FROM users WHERE email = $1 AND is_active = true',
+        [email]
+      );
+      userRow = byEmail.rows[0];
+
+      if (userRow) {
+        await db.query('UPDATE users SET discord_id = $1 WHERE id = $2', [discordId, userRow.id]);
+      }
+    }
+
+    // 3) Else, create a new user with a random password
+    if (!userRow) {
+      const uniqueUsername = await this.generateUniqueUsername(username);
+      const passwordHash = await bcrypt.hash(randomUUID(), 10);
+
+      const created = await db.query(
+        `INSERT INTO users (email, username, password_hash, discord_id, last_login)
+         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+         RETURNING id, email, username, created_at`,
+        [email, uniqueUsername, passwordHash, discordId]
+      );
+      userRow = created.rows[0];
+    } else {
+      await db.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [userRow.id]);
+    }
+
+    const tokens = this.generateTokens({
+      userId: userRow.id,
+      email: userRow.email,
+      username: userRow.username,
+    });
+
+    return {
+      user: {
+        id: userRow.id,
+        email: userRow.email,
+        username: userRow.username,
+        created_at: userRow.created_at,
+      },
+      tokens,
+    };
   }
 
   /**

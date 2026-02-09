@@ -61,6 +61,27 @@ export async function initializeDatabase(): Promise<void> {
       console.log(`✅ Database schema created! (${executedCount} statements executed)`);
     } else {
       console.log('✅ Database tables already exist');
+
+      // Lightweight migrations for existing databases
+      try {
+        const discordIdColumn = await db.query(
+          `SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'users'
+              AND column_name = 'discord_id'
+          ) AS exists`
+        );
+
+        const hasDiscordId = Boolean(discordIdColumn.rows?.[0]?.exists);
+        if (!hasDiscordId) {
+          await db.query('ALTER TABLE users ADD COLUMN discord_id VARCHAR(64) UNIQUE');
+          console.log('✅ Migrated users.discord_id column');
+        }
+      } catch (error: any) {
+        console.warn('⚠️ Database migration step failed:', error?.message ?? error);
+      }
     }
   } catch (error) {
     console.error('❌ Database initialization failed:', error);

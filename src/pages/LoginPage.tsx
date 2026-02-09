@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mail, Lock, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, CheckCircle, MessageSquare } from 'lucide-react';
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
   const { t } = useLanguage();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [discordLoading, setDiscordLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -46,6 +47,14 @@ export default function LoginPage() {
     }
   };
 
+  const startDiscordLogin = () => {
+    setError('');
+    setSuccess('');
+    setDiscordLoading(true);
+    const redirectUri = `${window.location.origin}/discord/callback`;
+    window.location.href = `/api/auth/discord/start?redirectUri=${encodeURIComponent(redirectUri)}`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-4 scanlines">
       {/* Background effects */}
@@ -66,6 +75,25 @@ export default function LoginPage() {
               Welcome Back, Champion
             </p>
           </div>
+
+          <button
+            type="button"
+            onClick={startDiscordLogin}
+            disabled={loading || discordLoading}
+            className="w-full gaming-button-secondary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mb-6"
+          >
+            {discordLoading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Connecting Discord...
+              </>
+            ) : (
+              <>
+                <MessageSquare className="w-5 h-5" />
+                CONTINUE WITH DISCORD
+              </>
+            )}
+          </button>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

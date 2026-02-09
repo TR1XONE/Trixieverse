@@ -15,7 +15,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
-  loginWithDiscord: (code: string) => Promise<void>;
+  loginWithDiscord: (code: string, state: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -226,11 +226,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const loginWithDiscord = async (code: string) => {
+  const loginWithDiscord = async (code: string, state: string) => {
     try {
       setIsLoading(true);
 
-      throw new Error('Discord login is not configured');
+      const res = await fetch('/api/auth/discord/exchange', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ code, state }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Discord login failed');
+      }
+
+      const accessToken = payload?.tokens?.accessToken;
+      const refreshToken = payload?.tokens?.refreshToken;
+      if (!accessToken || !refreshToken) {
+        throw new Error('Discord login response missing tokens');
+      }
+
+      localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+
+      const nextUser = mapUser(payload.user);
+      localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+      setUser(nextUser);
     } finally {
       setIsLoading(false);
     }

@@ -4,10 +4,181 @@
  */
 
 import express, { Router, Request, Response } from 'express';
+import { createHmac, randomUUID } from 'crypto';
 import authService from '../services/authService';
 import { verifyToken, AuthRequest } from '../middleware/authMiddleware';
 
 const router = Router();
+
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is not configured`);
+  }
+  return value;
+}
+
+function base64UrlEncode(input: string): string {
+  return Buffer.from(input, 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function base64UrlDecode(input: string): string {
+  const b64 = input.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+  return Buffer.from(b64 + pad, 'base64').toString('utf8');
+}
+
+function signDiscordState(payloadB64: string): string {
+  const secret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+  return createHmac('sha256', secret).update(payloadB64).digest('hex');
+}
+
+function buildDiscordState(redirectUri: string): string {
+  const payload = base64UrlEncode(
+    JSON.stringify({
+      nonce: randomUUID(),
+      redirectUri,
+      ts: Date.now(),
+    })
+  );
+  const sig = signDiscordState(payload);
+  return `${payload}.${sig}`;
+}
+
+function verifyDiscordState(state: string): { redirectUri: string } {
+  const [payload, sig] = state.split('.');
+  if (!payload || !sig) {
+    throw new Error('Invalid state');
+  }
+  const expected = signDiscordState(payload);
+  if (expected !== sig) {
+    throw new Error('Invalid state');
+  }
+  const decoded = JSON.parse(base64UrlDecode(payload));
+  if (!decoded?.redirectUri || typeof decoded.redirectUri !== 'string') {
+    throw new Error('Invalid state payload');
+  }
+  return { redirectUri: decoded.redirectUri };
+}
+
+/**
+ * GET /api/auth/discord/start
+ * Redirects to Discord OAuth authorization endpoint
+ */
+router.get('/discord/start', (req: Request, res: Response) => {
+  try {
+    const clientId = getRequiredEnv('DISCORD_CLIENT_ID');
+    const redirectUri =
+      (typeof req.query.redirectUri === 'string' && req.query.redirectUri) ||
+      `${process.env.FRONTEND_URL || 'http://localhost:5173'}/discord/callback`;
+
+    const state = buildDiscordState(redirectUri);
+
+    const url = new URL('https://discord.com/api/oauth2/authorize');
+    url.searchParams.set('client_id', clientId);
+    url.searchParams.set('redirect_uri', redirectUri);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('scope', 'identify email');
+    url.searchParams.set('state', state);
+
+    res.redirect(302, url.toString());
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to start Discord auth',
+    });
+  }
+});
+
+/**
+ * POST /api/auth/discord/exchange
+ * Exchanges a Discord OAuth code for tokens, fetches user info, and mints app JWT tokens.
+ */
+router.post('/discord/exchange', async (req: Request, res: Response) => {
+  try {
+    const clientId = getRequiredEnv('DISCORD_CLIENT_ID');
+    const clientSecret = getRequiredEnv('DISCORD_CLIENT_SECRET');
+
+    const { code, state } = req.body as { code?: string; state?: string };
+    if (!code || !state) {
+      return res.status(400).json({ error: 'code and state are required' });
+    }
+
+    const { redirectUri } = verifyDiscordState(state);
+
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'application/json',
+      },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+      }).toString(),
+    });
+
+    const tokenPayload: any = await tokenRes.json().catch(() => ({}));
+    if (!tokenRes.ok) {
+      return res.status(401).json({
+        error: tokenPayload?.error_description || tokenPayload?.error || 'Discord token exchange failed',
+      });
+    }
+
+    const discordAccessToken = tokenPayload?.access_token as string | undefined;
+    if (!discordAccessToken) {
+      return res.status(401).json({ error: 'Discord token response missing access_token' });
+    }
+
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: {
+        authorization: `Bearer ${discordAccessToken}`,
+        accept: 'application/json',
+      },
+    });
+
+    const discordUser: any = await userRes.json().catch(() => ({}));
+    if (!userRes.ok) {
+      return res.status(401).json({ error: 'Failed to fetch Discord user' });
+    }
+
+    const discordId = discordUser?.id as string | undefined;
+    const email = discordUser?.email as string | undefined;
+    const username =
+      (discordUser?.global_name as string | undefined) ||
+      (discordUser?.username as string | undefined) ||
+      'discord_user';
+
+    if (!discordId) {
+      return res.status(400).json({ error: 'Discord user missing id' });
+    }
+    if (!email) {
+      return res.status(400).json({ error: 'Discord user missing email (did you request the email scope?)' });
+    }
+
+    const { user, tokens } = await authService.loginWithDiscord({
+      discordId,
+      email,
+      username,
+    });
+
+    res.json({
+      success: true,
+      user: { ...user, discordId },
+      tokens,
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : 'Discord login failed',
+    });
+  }
+});
 
 /**
  * POST /api/auth/register
