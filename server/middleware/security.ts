@@ -6,9 +6,13 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import mongoSanitize from 'mongo-sanitize';
+import { createRequire } from 'module';
 import cors from 'cors';
 import ErrorHandler from './errorHandler.js';
+
+const require = createRequire(import.meta.url);
+const mongoSanitizeModule = require('mongo-sanitize');
+const sanitize = mongoSanitizeModule?.default ?? mongoSanitizeModule;
 
 /**
  * Rate limiters
@@ -57,7 +61,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
 
   // Check CSRF token
   const token = req.headers['x-csrf-token'] as string;
-  const sessionToken = req.session?.csrfToken;
+  const sessionToken = (req as any).session?.csrfToken;
 
   if (!token || token !== sessionToken) {
     return next(ErrorHandler.forbiddenError('Invalid CSRF token'));
@@ -72,12 +76,12 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
 export function sanitizeInput(req: Request, res: Response, next: NextFunction) {
   // Sanitize request body
   if (req.body) {
-    req.body = mongoSanitize()(req.body);
+    req.body = sanitize(req.body);
   }
 
   // Sanitize query parameters
   if (req.query) {
-    req.query = mongoSanitize()(req.query);
+    req.query = sanitize(req.query);
   }
 
   next();

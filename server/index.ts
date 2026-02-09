@@ -20,9 +20,8 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 // Initialize Sentry FIRST - before everything else
-import { initializeSentry } from './utils/sentry';
+import { initializeSentry, sentryErrorHandler, sentryRequestHandler } from './utils/sentry';
 initializeSentry();
-import * as Sentry from '@sentry/node';
 
 // Import middleware
 import requestLogger from './middleware/requestLogger';
@@ -56,7 +55,7 @@ const wss = new WebSocketServer({ server });
 // ============ MIDDLEWARE ============
 
 // Sentry request handler FIRST
-app.use(Sentry.Handlers.requestHandler());
+app.use(sentryRequestHandler());
 
 // Security middleware
 applySecurityMiddleware(app);
@@ -122,7 +121,7 @@ app.get('*', (req: Request, res: Response) => {
 // ============ ERROR HANDLING ============
 
 // Sentry error handler (MUST be before other error handlers)
-app.use(Sentry.Handlers.errorHandler());
+app.use(sentryErrorHandler());
 
 // 404 handler
 app.use(ErrorHandler.notFound);
@@ -216,7 +215,7 @@ initializeDatabase()
     });
   })
   .catch((error) => {
-    logger.error('Failed to initialize database:', error);
+    logger.error({ message: 'Failed to initialize database', error });
     process.exit(1);
   });
 

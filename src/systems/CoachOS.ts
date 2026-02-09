@@ -112,9 +112,13 @@ export class CoachOS {
    * Record a memorable moment in the game
    */
   recordMemoryMoment(moment: Omit<MemoryMoment, 'id' | 'timestamp'>): MemoryMoment {
+    const uniqueId =
+      (globalThis as any).crypto?.randomUUID?.() ??
+      `moment_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
     const newMoment: MemoryMoment = {
       ...moment,
-      id: `moment_${Date.now()}`,
+      id: uniqueId,
       timestamp: new Date(),
     };
 
@@ -180,6 +184,8 @@ export class CoachOS {
     const profile = this.state.skillProfile;
     const alpha = 0.3; // Learning rate
 
+    const previousRating = profile.overallRating;
+
     // Update skills with exponential moving average
     profile.mechanics = profile.mechanics * (1 - alpha) + matchData.mechanics * alpha;
     profile.macroPlay = profile.macroPlay * (1 - alpha) + matchData.macroPlay * alpha;
@@ -196,7 +202,6 @@ export class CoachOS {
       5;
 
     // Determine trend
-    const previousRating = profile.overallRating;
     if (profile.overallRating > previousRating + 2) {
       profile.trend = 'improving';
     } else if (profile.overallRating < previousRating - 2) {
@@ -390,7 +395,43 @@ export class CoachOS {
   loadFromLocalStorage(): void {
     const saved = localStorage.getItem(`coachOS_${this.state.playerId}`);
     if (saved) {
-      this.state = JSON.parse(saved);
+      let parsed: any;
+      try {
+        parsed = JSON.parse(saved);
+      } catch {
+        return;
+      }
+
+      const seenIds = new Set<string>();
+      const normalizeMomentId = (id: unknown) => {
+        const base = typeof id === 'string' && id.length > 0 ? id : 'moment_unknown';
+        if (!seenIds.has(base)) {
+          seenIds.add(base);
+          return base;
+        }
+        const next = `${base}_${Math.random().toString(16).slice(2)}`;
+        seenIds.add(next);
+        return next;
+      };
+
+      this.state = {
+        ...this.state,
+        ...parsed,
+        memoryMoments: Array.isArray(parsed?.memoryMoments)
+          ? parsed.memoryMoments.map((m: any) => ({
+              ...m,
+              id: normalizeMomentId(m?.id),
+              timestamp: m?.timestamp ? new Date(m.timestamp) : new Date(),
+            }))
+          : [],
+        skillProfile: {
+          ...this.state.skillProfile,
+          ...(parsed?.skillProfile ?? {}),
+          lastUpdated: parsed?.skillProfile?.lastUpdated
+            ? new Date(parsed.skillProfile.lastUpdated)
+            : new Date(),
+        },
+      };
     }
   }
 }

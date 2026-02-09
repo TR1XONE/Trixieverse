@@ -87,11 +87,36 @@ export default function CoachPersonality() {
     // Load from localStorage
     const saved = localStorage.getItem('coachPersonality');
     if (saved) {
-      setSelectedPersonality(JSON.parse(saved));
+      try {
+        const parsed = JSON.parse(saved);
+        setSelectedPersonality((prev) => ({
+          ...prev,
+          ...parsed,
+        }));
+      } catch {
+        // ignore invalid localStorage
+      }
     }
     const savedMemory = localStorage.getItem('coachMemory');
     if (savedMemory) {
-      setCoachMemory(JSON.parse(savedMemory));
+      try {
+        const parsed = JSON.parse(savedMemory);
+        setCoachMemory((prev) => ({
+          ...prev,
+          ...parsed,
+          favoriteChampions: Array.isArray(parsed?.favoriteChampions)
+            ? parsed.favoriteChampions
+            : prev.favoriteChampions,
+          strengths: Array.isArray(parsed?.strengths) ? parsed.strengths : prev.strengths,
+          weaknesses: Array.isArray(parsed?.weaknesses) ? parsed.weaknesses : prev.weaknesses,
+          personalGoals: Array.isArray(parsed?.personalGoals) ? parsed.personalGoals : prev.personalGoals,
+          recentMatches: Array.isArray(parsed?.recentMatches) ? parsed.recentMatches : prev.recentMatches,
+          milestones: Array.isArray(parsed?.milestones) ? parsed.milestones : prev.milestones,
+          firstMeetDate: parsed?.firstMeetDate ? new Date(parsed.firstMeetDate) : prev.firstMeetDate,
+        }));
+      } catch {
+        // ignore invalid localStorage
+      }
     }
   }, []);
 

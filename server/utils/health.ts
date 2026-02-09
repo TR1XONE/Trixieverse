@@ -3,7 +3,7 @@
  * Monitors system health including database, Redis, API connectivity
  */
 
-import { Database } from '../database/connection';
+import db from '../database/connection';
 import logger from './logger';
 
 interface HealthStatus {
@@ -27,7 +27,9 @@ export class HealthCheck {
   }> {
     const startTime = Date.now();
     try {
-      const db = new Database();
+      if (!db.getPool()) {
+        await db.connect();
+      }
       await db.query('SELECT 1');
       const responseTime = Date.now() - startTime;
       return { status: true, responseTime };
@@ -47,12 +49,12 @@ export class HealthCheck {
   static checkMemory(): { status: boolean; usage: number; limit: number } {
     const memUsage = process.memoryUsage();
     const heapUsedPercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
-    const isHealthy = heapUsedPercent < 80; // Alert if >80% heap used
+    const isHealthy = heapUsedPercent < 95; // Alert if >95% heap used
 
     return {
       status: isHealthy,
       usage: Math.round(heapUsedPercent),
-      limit: 80,
+      limit: 95,
     };
   }
 

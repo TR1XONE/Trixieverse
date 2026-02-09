@@ -1,5 +1,21 @@
-import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+
+let Sentry: any = null;
+let nodeProfilingIntegration: (() => any) | null = null;
+
+try {
+  Sentry = require('@sentry/node');
+  try {
+    ({ nodeProfilingIntegration } = require('@sentry/profiling-node'));
+  } catch {
+    nodeProfilingIntegration = null;
+  }
+} catch {
+  Sentry = null;
+  nodeProfilingIntegration = null;
+}
 
 /**
  * Initialize Sentry for error tracking
@@ -7,6 +23,13 @@ import { nodeProfilingIntegration } from '@sentry/profiling-node';
  */
 export function initializeSentry() {
   const dsn = process.env.SENTRY_DSN;
+
+  if (!Sentry) {
+    console.warn(
+      'Sentry packages not installed. Error tracking disabled. Install @sentry/node to enable.'
+    );
+    return;
+  }
 
   if (!dsn) {
     console.warn(
@@ -22,7 +45,7 @@ export function initializeSentry() {
       new Sentry.Integrations.Http({ tracing: true }),
       new Sentry.Integrations.OnUncaughtException(),
       new Sentry.Integrations.OnUnhandledRejection(),
-      nodeProfilingIntegration(),
+      ...(nodeProfilingIntegration ? [nodeProfilingIntegration()] : []),
     ],
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
     profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
@@ -39,6 +62,7 @@ export function captureException(
   error: Error,
   context?: Record<string, any>
 ) {
+  if (!Sentry) return;
   Sentry.withScope((scope) => {
     if (context) {
       Object.entries(context).forEach(([key, value]) => {
@@ -56,7 +80,16 @@ export function captureMessage(
   message: string,
   level: Sentry.SeverityLevel = 'info'
 ) {
+  if (!Sentry) return;
   return Sentry.captureMessage(message, level);
+}
+
+export function sentryRequestHandler() {
+  return Sentry?.Handlers?.requestHandler?.() ?? ((req: any, res: any, next: any) => next());
+}
+
+export function sentryErrorHandler() {
+  return Sentry?.Handlers?.errorHandler?.() ?? ((err: any, req: any, res: any, next: any) => next(err));
 }
 
 export default Sentry;

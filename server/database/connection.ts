@@ -19,7 +19,7 @@ interface DatabaseConfig {
 }
 
 class DatabaseService {
-  private pool: any = null;
+  private pool: pkg.Pool | null = null;
   private config: DatabaseConfig;
 
   constructor() {
@@ -30,6 +30,10 @@ class DatabaseService {
     const port = parseInt(process.env.DB_PORT || process.env.PGPORT || '5432');
     const database = process.env.DB_NAME || process.env.PGDATABASE || 'trixieverse';
     
+    const shouldUseSsl =
+      process.env.DB_SSL === 'true' ||
+      (process.env.DATABASE_URL?.includes('sslmode=require') ?? false);
+
     // Railway uses DATABASE_URL, parse it if available
     if (process.env.DATABASE_URL) {
       try {
@@ -40,7 +44,7 @@ class DatabaseService {
           host: url.hostname || host,
           port: parseInt(url.port || String(port)),
           database: url.pathname.slice(1) || database,
-          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+          ssl: shouldUseSsl ? { rejectUnauthorized: false } : false,
         };
       } catch (error) {
         console.warn('Failed to parse DATABASE_URL, using individual variables');
@@ -50,7 +54,7 @@ class DatabaseService {
           host,
           port,
           database,
-          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+          ssl: shouldUseSsl ? { rejectUnauthorized: false } : false,
         };
       }
     } else {
@@ -60,7 +64,7 @@ class DatabaseService {
         host,
         port,
         database,
-        ssl: process.env.DB_SSL === 'true' || process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        ssl: shouldUseSsl ? { rejectUnauthorized: false } : false,
       };
     }
   }
@@ -85,7 +89,10 @@ class DatabaseService {
   /**
    * Execute a query
    */
-  async query<T = any>(text: string, params?: any[]): Promise<pkg.QueryResult<T>> {
+  async query<T extends pkg.QueryResultRow = any>(
+    text: string,
+    params?: any[]
+  ): Promise<pkg.QueryResult<T>> {
     if (!this.pool) {
       throw new Error('Database not connected');
     }
@@ -127,6 +134,7 @@ class DatabaseService {
   async disconnect(): Promise<void> {
     if (this.pool) {
       await this.pool.end();
+      this.pool = null;
       console.log('✅ Database disconnected');
     }
   }
@@ -139,4 +147,6 @@ class DatabaseService {
   }
 }
 
-export default new DatabaseService();
+export class Database extends DatabaseService {}
+
+export default new Database();
