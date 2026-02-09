@@ -24,20 +24,111 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const USER_KEY = 'auth_user';
+  const ACCESS_TOKEN_KEY = 'auth_access_token';
+  const REFRESH_TOKEN_KEY = 'auth_refresh_token';
+
+  const mapUser = (raw: any): User => {
+    const createdAtValue = raw?.createdAt ?? raw?.created_at;
+    return {
+      id: String(raw.id),
+      email: String(raw.email),
+      username: String(raw.username),
+      createdAt: createdAtValue ? new Date(createdAtValue) : new Date(),
+      discordId: raw?.discordId,
+    };
+  };
+
+  const authFetch = async (input: string, init: RequestInit = {}) => {
+    const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const headers = new Headers(init.headers);
+    headers.set('accept', 'application/json');
+    if (!headers.has('content-type') && init.body) {
+      headers.set('content-type', 'application/json');
+    }
+    if (accessToken) {
+      headers.set('authorization', `Bearer ${accessToken}`);
+    }
+    return fetch(input, {
+      ...init,
+      headers,
+    });
+  };
+
+  const refreshAccessToken = async (): Promise<string> => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) {
+      throw new Error('Missing refresh token');
+    }
+
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(payload?.error || 'Failed to refresh token');
+    }
+
+    const accessToken = payload?.tokens?.accessToken;
+    const nextRefreshToken = payload?.tokens?.refreshToken ?? refreshToken;
+    if (!accessToken) {
+      throw new Error('Invalid refresh response');
+    }
+
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, nextRefreshToken);
+    return accessToken;
+  };
+
   // Check if user is already logged in (from localStorage)
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const stored = localStorage.getItem('auth_user');
-        const token = localStorage.getItem('auth_token');
+        const stored = localStorage.getItem(USER_KEY);
+        const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
 
-        if (stored && token) {
-          const parsedUser = JSON.parse(stored);
-          // Verify token is still valid (in production, call backend)
-          setUser(parsedUser);
+        if (!accessToken) {
+          return;
+        }
+
+        const me = async () => {
+          const res = await authFetch('/api/auth/me');
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(payload?.error || 'Not authenticated');
+          }
+          const nextUser = mapUser(payload.user);
+          localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+          setUser(nextUser);
+        };
+
+        try {
+          await me();
+        } catch {
+          await refreshAccessToken();
+          await me();
+        }
+
+        if (stored) {
+          try {
+            const parsedUser = mapUser(JSON.parse(stored));
+            setUser(parsedUser);
+          } catch {
+            // ignore
+          }
         }
       } catch (error) {
         console.error('Auth check failed:', error);
+        localStorage.removeItem(USER_KEY);
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -49,24 +140,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-
-      // In production, this would call your backend API
-      // For now, we'll do client-side simulation with localStorage
-      const response = {
-        user: {
-          id: `user_${Date.now()}`,
-          email,
-          username: email.split('@')[0],
-          createdAt: new Date(),
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
         },
-        token: `token_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      };
+        body: JSON.stringify({ email, password }),
+      });
 
-      // Store user and token
-      localStorage.setItem('auth_user', JSON.stringify(response.user));
-      localStorage.setItem('auth_token', response.token);
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Login failed');
+      }
 
-      setUser(response.user);
+      const accessToken = payload?.tokens?.accessToken;
+      const refreshToken = payload?.tokens?.refreshToken;
+      if (!accessToken || !refreshToken) {
+        throw new Error('Login response missing tokens');
+      }
+
+      localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+
+      const nextUser = mapUser(payload.user);
+      localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+      setUser(nextUser);
     } finally {
       setIsLoading(false);
     }
@@ -80,33 +179,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!email || !username || !password) {
         throw new Error('All fields are required');
       }
-      if (password.length < 6) {
-        throw new Error('Password must be at least 6 characters');
+      if (password.length < 8) {
+        throw new Error('Password must be at least 8 characters');
       }
 
-      // In production, this would call your backend API
-      const response = {
-        user: {
-          id: `user_${Date.now()}`,
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
           email,
           username,
-          createdAt: new Date(),
-        },
-        token: `token_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      };
+          password,
+          confirmPassword: password,
+        }),
+      });
 
-      localStorage.setItem('auth_user', JSON.stringify(response.user));
-      localStorage.setItem('auth_token', response.token);
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Signup failed');
+      }
 
-      setUser(response.user);
+      const accessToken = payload?.tokens?.accessToken;
+      const refreshToken = payload?.tokens?.refreshToken;
+      if (!accessToken || !refreshToken) {
+        throw new Error('Signup response missing tokens');
+      }
+
+      localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+
+      const nextUser = mapUser(payload.user);
+      localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+      setUser(nextUser);
     } finally {
       setIsLoading(false);
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('auth_token');
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     setUser(null);
   };
 
@@ -114,23 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
 
-      // In production, this would exchange code for Discord token
-      // Then call backend to link Discord account
-      const response = {
-        user: {
-          id: `user_${Date.now()}`,
-          email: `discord_${Math.random().toString(36).substring(7)}@discord.local`,
-          username: `Discord User ${Math.random().toString(36).substring(7)}`,
-          createdAt: new Date(),
-          discordId: code, // This would be the actual Discord ID
-        },
-        token: `token_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      };
-
-      localStorage.setItem('auth_user', JSON.stringify(response.user));
-      localStorage.setItem('auth_token', response.token);
-
-      setUser(response.user);
+      throw new Error('Discord login is not configured');
     } finally {
       setIsLoading(false);
     }

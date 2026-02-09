@@ -158,7 +158,7 @@ export default function LoginPage() {
           {/* Demo Info */}
           <div className="mt-6 p-3 rounded-sm bg-cyan-500/10 border border-cyan-500/20">
             <p className="text-xs text-cyan-400/80">
-              💡 Demo: Use any email and password to test
+              💡 Use an account you created on the Sign Up page
             </p>
           </div>
         </div>
