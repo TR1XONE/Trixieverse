@@ -1,0 +1,25 @@
+[versions]
+agp = "8.2.2"
+kotlin = "1.9.22"
+androidx-core = "1.12.0"
+androidx-appcompat = "1.6.1"
+androidx-activity = "1.8.2"
+androidx-browser = "1.7.0"
+androidx-security = "1.1.0-alpha06"
+material = "1.11.0"
+mlkit-text = "16.0.0"
+okhttp = "4.12.0"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
+androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "androidx-activity" }
+androidx-browser = { module = "androidx.browser:browser", version.ref = "androidx-browser" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "androidx-security" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "mlkit-text" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

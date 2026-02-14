@@ -13,6 +13,8 @@ import socialRoutes from './socialRoutes';
 import analyticsRoutes from './analyticsRoutes';
 import achievementRoutes from './achievementRoutes';
 import matchRoutes from './matchRoutes';
+import riotRoutes from './riotRoutes';
+import { wildriftCoachRouter } from '../wildriftCoach';
 
 const router = Router();
 
@@ -32,5 +34,7 @@ router.use('/social', verifyToken, socialRoutes);
 router.use('/analytics', verifyToken, analyticsRoutes);
 router.use('/achievements', achievementRoutes);
 router.use('/matches', verifyToken, matchRoutes);
+router.use('/riot', verifyToken, riotRoutes);
+router.use('/wildrift-coach', verifyToken, wildriftCoachRouter);
 
 export default router;

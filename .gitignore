@@ -2,3 +2,5 @@ node_modules/
 
 logs/
 .env
+android-app/local.properties
+*.secrets.properties

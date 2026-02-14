@@ -1,0 +1,6 @@
+{
+  "death_spike": {
+    "mid_game_window_minutes": [8, 15],
+    "share_threshold": 0.5
+  }
+}

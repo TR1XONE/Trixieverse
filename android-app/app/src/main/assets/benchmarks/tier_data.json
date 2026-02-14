@@ -1,0 +1,41 @@
+{
+  "patch": "6.3f",
+  "source": "demo_data_from_repo",
+  "roles": {
+    "solo": [
+      {"name": "Tryndamere", "winRate": 54.2, "pickRate": 12.5, "tier": "S+"},
+      {"name": "Garen", "winRate": 52.8, "pickRate": 10.2, "tier": "S"},
+      {"name": "Darius", "winRate": 51.5, "pickRate": 8.9, "tier": "S"},
+      {"name": "Fiora", "winRate": 50.2, "pickRate": 7.3, "tier": "A"},
+      {"name": "Olaf", "winRate": 49.8, "pickRate": 6.5, "tier": "A"}
+    ],
+    "jungle": [
+      {"name": "Lee Sin", "winRate": 53.1, "pickRate": 15.8, "tier": "S+"},
+      {"name": "Evelynn", "winRate": 52.4, "pickRate": 12.3, "tier": "S"},
+      {"name": "Kha'Zix", "winRate": 51.9, "pickRate": 11.2, "tier": "S"},
+      {"name": "Graves", "winRate": 50.5, "pickRate": 9.8, "tier": "A"},
+      {"name": "Nidalee", "winRate": 49.2, "pickRate": 8.1, "tier": "A"}
+    ],
+    "mid": [
+      {"name": "Lux", "winRate": 53.8, "pickRate": 14.2, "tier": "S+"},
+      {"name": "Ahri", "winRate": 52.6, "pickRate": 13.5, "tier": "S"},
+      {"name": "Akali", "winRate": 51.3, "pickRate": 10.9, "tier": "S"},
+      {"name": "Yasuo", "winRate": 50.1, "pickRate": 9.4, "tier": "A"},
+      {"name": "Zed", "winRate": 49.7, "pickRate": 8.6, "tier": "A"}
+    ],
+    "duo": [
+      {"name": "Caitlyn", "winRate": 54.5, "pickRate": 16.2, "tier": "S+"},
+      {"name": "Jinx", "winRate": 53.2, "pickRate": 14.8, "tier": "S"},
+      {"name": "Ashe", "winRate": 51.8, "pickRate": 11.5, "tier": "S"},
+      {"name": "Draven", "winRate": 50.4, "pickRate": 9.2, "tier": "A"},
+      {"name": "Vayne", "winRate": 49.6, "pickRate": 7.8, "tier": "A"}
+    ],
+    "support": [
+      {"name": "Thresh", "winRate": 54.1, "pickRate": 15.9, "tier": "S+"},
+      {"name": "Leona", "winRate": 52.9, "pickRate": 13.4, "tier": "S"},
+      {"name": "Blitzcrank", "winRate": 51.6, "pickRate": 10.7, "tier": "S"},
+      {"name": "Lulu", "winRate": 50.3, "pickRate": 8.9, "tier": "A"},
+      {"name": "Alistar", "winRate": 49.8, "pickRate": 7.6, "tier": "A"}
+    ]
+  }
+}

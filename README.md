@@ -71,6 +71,49 @@ pnpm build
 pnpm start
 ```
 
+## Android-app (lokal OCR + Bubble)
+
+Det finns en Android-app i `android-app/` som kan köra lokal OCR (ML Kit) och visa coachning i en flytande bubble-overlay under spel.
+
+### Funktioner (Android)
+
+- Lokal coaching via `AresIntelligenceModule` (SQLite-baserad profil/minne)
+- Predictive Blueprint snapshots (sparas i `blueprint_history`)
+- Minimal Blueprint-kort i `MainActivity` (Summary, Next Move, Win Δ)
+- Screen capture + OCR via `ScreenCaptureService`
+
+### Bygg en debug-APK (för telefon-test)
+
+Det här repot saknar Gradle Wrapper-scripts, så bygg enklast via Android Studio:
+
+1. Öppna projektmappen `android-app/` i Android Studio
+2. Vänta på Gradle sync
+3. Bygg APK:
+   - Build -> Build Bundle(s) / APK(s) -> Build APK(s)
+
+APK:en hamnar normalt här:
+
+`android-app/app/build/outputs/apk/debug/app-debug.apk`
+
+### Installera APK
+
+Via ADB:
+
+`adb install -r android-app/app/build/outputs/apk/debug/app-debug.apk`
+
+Manuellt:
+
+- Kopiera `app-debug.apk` till t.ex. `Downloads/` på telefonen och installera.
+
+### Starta live-coaching (OCR)
+
+I appen:
+
+1. Logga in med Discord (för person-specifik minnesprofil)
+2. Tryck "Start Capture Service"
+3. Godkänn overlay-permission och MediaProjection (skärminspelning)
+4. Öppna Wild Rift och verifiera att bubble-overlay uppdateras
+
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 19 + TypeScript + Tailwind CSS 4

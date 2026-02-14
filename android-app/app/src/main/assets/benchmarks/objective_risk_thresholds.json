@@ -1,0 +1,29 @@
+{
+  "objective_windows_minutes": {
+    "herald": [4, 10],
+    "dragon": [4, 26],
+    "baron": [11, 30],
+    "elder": [18, 30]
+  },
+  "gold_diff": {
+    "low": -800,
+    "medium": -2000,
+    "high": -4000
+  },
+  "gold_trend_per_min": {
+    "low": -60,
+    "medium": -150,
+    "high": -250
+  },
+  "risk_probability": {
+    "base_when_behind": 0.55,
+    "low": 0.62,
+    "medium": 0.74,
+    "high": 0.85,
+    "cap": 0.92,
+    "objective_callout_bonus": 0.04,
+    "shutdown_bonus": 0.05,
+    "ace_or_wipe_bonus": 0.08,
+    "stolen_bonus": 0.12
+  }
+}

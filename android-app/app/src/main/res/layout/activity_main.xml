@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:id="@+id/tvDiscordStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Discord: Not logged in"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/btnDiscordLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Login with Discord" />
+
+    <Button
+        android:id="@+id/btnDiscordLogout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Logout" />
+
+    <EditText
+        android:id="@+id/etBackendIp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Backend IP (e.g. 192.168.1.10)"
+        android:inputType="text"
+        android:maxLines="1" />
+
+    <Button
+        android:id="@+id/btnSaveBackendIp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Save Backend IP" />
+
+    <Button
+        android:id="@+id/btnStart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Start Capture Service" />
+
+    <TextView
+        android:id="@+id/tvBlueprintTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Blueprint"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvBlueprintSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="No blueprint snapshots yet." />
+
+    <TextView
+        android:id="@+id/tvBlueprintNextMove"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="" />
+
+    <TextView
+        android:id="@+id/tvBlueprintDelta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="" />
+
+    <Button
+        android:id="@+id/btnStop"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Stop Service" />
+
+</LinearLayout>

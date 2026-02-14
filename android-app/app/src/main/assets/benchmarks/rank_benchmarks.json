@@ -1,0 +1,18 @@
+{
+  "tiers": {
+    "master": {
+      "gpm": 780,
+      "kda": 3.4
+    },
+    "grandmaster": {
+      "gpm": 860,
+      "kda": 3.8
+    }
+  },
+  "win_probability": {
+    "gold_diff_per_1000": 0.04,
+    "gpm_ratio_weight": 0.18,
+    "kda_ratio_weight": 0.10,
+    "cap": 0.25
+  }
+}
