@@ -1,0 +1,236 @@
+/* ── TrixieVerse Animated Logo ── */
+
+.trixie-logo-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 0 1rem;
+    overflow: visible;
+}
+
+/* ── Orbital rings ── */
+.trixie-orbit {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    pointer-events: none;
+}
+
+.trixie-orbit-1 {
+    width: 220px;
+    height: 220px;
+    border-color: rgba(14, 165, 233, 0.15);
+    animation: trixie-spin 12s linear infinite, trixie-fade-in 1s ease-out 0.2s both;
+}
+
+.trixie-orbit-2 {
+    width: 280px;
+    height: 280px;
+    border-color: rgba(6, 182, 212, 0.10);
+    animation: trixie-spin-reverse 18s linear infinite, trixie-fade-in 1s ease-out 0.4s both;
+}
+
+.trixie-orbit-3 {
+    width: 340px;
+    height: 340px;
+    border-color: rgba(139, 92, 246, 0.07);
+    animation: trixie-spin 25s linear infinite, trixie-fade-in 1s ease-out 0.6s both;
+}
+
+/* Dot on each orbit */
+.trixie-orbit-1::after,
+.trixie-orbit-2::after,
+.trixie-orbit-3::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    transform: translateX(-50%);
+}
+
+.trixie-orbit-1::after {
+    background: #0ea5e9;
+    box-shadow: 0 0 8px #0ea5e9;
+}
+
+.trixie-orbit-2::after {
+    background: #06b6d4;
+    box-shadow: 0 0 8px #06b6d4;
+}
+
+.trixie-orbit-3::after {
+    background: #8b5cf6;
+    box-shadow: 0 0 6px #8b5cf6;
+}
+
+/* ── Core glow behind text ── */
+.trixie-core {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.25) 0%, rgba(139, 92, 246, 0.10) 50%, transparent 70%);
+    animation: trixie-pulse 3s ease-in-out infinite, trixie-fade-in 0.8s ease-out both;
+    filter: blur(20px);
+}
+
+/* ── Brand text ── */
+.trixie-text {
+    position: relative;
+    z-index: 2;
+    font-family: "Space Mono", "IBM Plex Mono", monospace;
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+    user-select: none;
+}
+
+@media (min-width: 640px) {
+    .trixie-text {
+        font-size: 3.5rem;
+    }
+}
+
+/* Individual letter animations */
+.trixie-text>span {
+    display: inline-block;
+    animation: trixie-letter-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.trixie-t {
+    color: #0ea5e9;
+    animation-delay: 0.1s;
+}
+
+.trixie-r {
+    color: #0ea5e9;
+    animation-delay: 0.15s;
+}
+
+.trixie-i {
+    color: #0ea5e9;
+    animation-delay: 0.2s;
+}
+
+.trixie-x1 {
+    color: #8b5cf6;
+    animation-delay: 0.25s;
+    text-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
+}
+
+.trixie-i2 {
+    color: #0ea5e9;
+    animation-delay: 0.3s;
+}
+
+.trixie-e {
+    color: #0ea5e9;
+    animation-delay: 0.35s;
+}
+
+.trixie-verse {
+    color: #06b6d4;
+    margin-left: 0.1em;
+    animation-delay: 0.45s;
+    font-size: 0.75em;
+    letter-spacing: 0.25em;
+}
+
+/* The X gets a persistent glow pulse */
+.trixie-x1 {
+    animation: trixie-letter-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both,
+        trixie-x-glow 2s ease-in-out 1.2s infinite;
+}
+
+/* ── Tagline ── */
+.trixie-tagline {
+    position: relative;
+    z-index: 2;
+    margin-top: 0.5rem;
+    font-family: "Inter", sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(203, 213, 225, 0.5);
+    animation: trixie-fade-in 0.8s ease-out 1s both;
+}
+
+/* ── Keyframes ── */
+@keyframes trixie-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes trixie-spin-reverse {
+    from {
+        transform: rotate(360deg);
+    }
+
+    to {
+        transform: rotate(0deg);
+    }
+}
+
+@keyframes trixie-pulse {
+
+    0%,
+    100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+}
+
+@keyframes trixie-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes trixie-letter-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.8);
+        filter: blur(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes trixie-x-glow {
+
+    0%,
+    100% {
+        text-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+    }
+
+    50% {
+        text-shadow: 0 0 35px rgba(139, 92, 246, 0.8), 0 0 60px rgba(139, 92, 246, 0.3);
+    }
+}
