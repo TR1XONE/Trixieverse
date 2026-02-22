@@ -74,6 +74,17 @@ export const itemData: Record<string, ItemInfo & { wikiUrl?: string }> = {
     "Mercury's Treads": { id: 3111, description: "Grants MR, movement speed, and tenacity. Reduces duration of crowd control effects." },
     "Berserker's Greaves": { id: 3006, description: "Grants attack speed and movement speed." },
     "Ionian Boots of Lucidity": { id: 3158, description: "Grants ability haste and movement speed. Also reduces summoner spell cooldowns." },
+
+    // Boot Enchants (WR-exclusive, using closest LoL PC item icon)
+    "Stasis": { id: 2420, description: "Become invulnerable and untargetable for 2.5s but unable to move or act. 120s cooldown." },
+    "Redemption": { id: 3107, description: "After a short delay, heal nearby allies and damage nearby enemies in a large area. Usable while dead." },
+    "Quicksilver": { id: 3140, description: "Remove all crowd control effects. 90s cooldown." },
+    "Locket": { id: 3190, description: "Shield yourself and nearby allies, absorbing damage for 2.5s." },
+    "Teleport": { id: null, description: "Teleport to a target allied structure after channeling for 3.5s." },
+    "Gargoyle": { id: 3193, description: "Gain a large shield based on bonus HP for 2.5s. Increases with nearby enemies." },
+    "Shadows": { id: 3152, description: "Dash in a direction and unleash a wave of rockets dealing magic damage." },
+    "Protobelt": { id: 3152, description: "Dash forward and fire bolts in a cone dealing magic damage." },
+    "Glorious": { id: 3800, description: "Gain a large burst of movement speed toward enemy champions or turrets for 4s." },
 };
 
 export function getItemImageUrl(itemName: string): string | null {

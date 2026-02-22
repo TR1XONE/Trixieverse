@@ -101,7 +101,7 @@ export const championRunes: Record<string, ChampionRunes> = {
     "Aphelios": { keystone: "Lethal Tempo", domination: "Gathering Storm", resolve: "Conditioning", inspiration: "Nimbus Cloak" },
     "Aurora": { keystone: "Conqueror", domination: "Gathering Storm", resolve: "Conditioning", inspiration: "Manaflow Band" },
     "Bard": { keystone: "Electrocute", domination: "Weakness", resolve: "Conditioning", inspiration: "Pack Hunter" },
-    "Cassiopeia": { keystone: "Conqueror", domination: "Gathering Storm", resolve: "Conditioning", inspiration: "Manaflow Band" },
+
     "Fiddlesticks": { keystone: "Dark Harvest", domination: "Sudden Impact", resolve: "Conditioning", inspiration: "Pathfinder" },
     "Gnar": { keystone: "Phase Rush", domination: "Gathering Storm", resolve: "Bone Plating", inspiration: "Mastermind" },
     "Hecarim": { keystone: "Conqueror", domination: "Brutal", resolve: "Conditioning", inspiration: "Pathfinder" },

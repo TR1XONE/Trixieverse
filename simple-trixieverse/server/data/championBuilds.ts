@@ -101,7 +101,7 @@ export const championBuilds: Record<string, ChampionBuild> = {
     "Aphelios": { core: ["Infinity Edge", "Runaan's Hurricane", "Bloodthirster", "Mortal Reminder"], boots: "Berserker's Greaves", enchant: "Quicksilver" },
     "Aurora": { core: ["Riftmaker", "Nashor's Tooth", "Rabadon's Deathcap", "Void Staff"], boots: "Ionian Boots of Lucidity", enchant: "Stasis" },
     "Bard": { core: ["Deadman's Plate", "Force of Nature", "Ardent Censer", "Warmog's Armor"], boots: "Ionian Boots of Lucidity", enchant: "Redemption" },
-    "Cassiopeia": { core: ["Rod of Ages", "Rylai's Crystal Scepter", "Rabadon's Deathcap", "Void Staff"], boots: "Ionian Boots of Lucidity", enchant: "Stasis" },
+
     "Fiddlesticks": { core: ["Rabadon's Deathcap", "Void Staff", "Infinity Orb", "Lich Bane"], boots: "Ionian Boots of Lucidity", enchant: "Stasis" },
     "Gnar": { core: ["Black Cleaver", "Sunfire Aegis", "Randuin's Omen", "Spirit Visage"], boots: "Plated Steelcaps", enchant: "Teleport" },
     "Hecarim": { core: ["Trinity Force", "Death's Dance", "Sterak's Gage", "Guardian Angel"], boots: "Mercury's Treads", enchant: "Locket" },

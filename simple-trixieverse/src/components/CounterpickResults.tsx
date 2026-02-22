@@ -2,6 +2,7 @@ import { Shield, Target, AlertTriangle, Zap, Footprints, Sparkles, Plus, Minus }
 import { getItemImageUrl, getItemColor, getItemDescription } from '@/utils/itemIcons';
 import { getRuneImageUrl, getRuneColor, getRuneDescription } from '@/utils/runeIcons';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ChampionBuild {
     core: string[];
@@ -47,10 +48,9 @@ function Tooltip({ name, description, iconUrl, children }: { name: string; descr
             onMouseMove={handleMouseMove}
         >
             {children}
-            {show && (
+            {show && createPortal(
                 <div
-                    className="fixed z-50 pointer-events-none"
-                    style={{ left: pos.x, top: pos.y, transform: 'translateY(-100%)' }}
+                    style={{ position: 'fixed', left: pos.x, top: pos.y, transform: 'translateY(-100%)', zIndex: 9999, pointerEvents: 'none' }}
                 >
                     <div className="bg-[#0d1117] border border-primary/30 rounded-lg px-3 py-2.5 shadow-2xl shadow-black/60 max-w-[260px]">
                         <div className="flex items-center gap-2 mb-1.5">
@@ -59,76 +59,27 @@ function Tooltip({ name, description, iconUrl, children }: { name: string; descr
                         </div>
                         <div className="text-[11px] leading-relaxed text-muted-foreground/90">{description}</div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
 }
 
-/* ─── Item Icon ───────────────────────────────────────── */
+/* ─── Item Icon (circular with label) ─────────────────── */
 
-const ORDER_LABELS = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
-
-function ItemIcon({ name, order }: { name: string; order?: number }) {
+function ItemIcon({ name, showLabel = false }: { name: string; showLabel?: boolean }) {
     const [failed, setFailed] = useState(false);
     const url = getItemImageUrl(name);
     const desc = getItemDescription(name);
 
-    const icon = (!url || failed) ? (
+    const circle = (!url || failed) ? (
         (() => {
             const color = getItemColor(name);
             const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
             return (
-                <div className="relative flex-shrink-0">
-                    <div
-                        className="w-10 h-10 rounded flex items-center justify-center text-[9px] font-bold border border-white/10"
-                        style={{ background: `${color}20`, color, borderColor: `${color}30` }}
-                    >
-                        {initials}
-                    </div>
-                    {order !== undefined && (
-                        <span className="absolute -top-1.5 -left-1 bg-primary text-[8px] font-bold text-black px-1 rounded-sm leading-tight">
-                            {ORDER_LABELS[order] ?? `${order + 1}th`}
-                        </span>
-                    )}
-                </div>
-            );
-        })()
-    ) : (
-        <div className="relative flex-shrink-0">
-            <img
-                src={url}
-                alt={name}
-                className="w-10 h-10 rounded border border-white/10"
-                onError={() => setFailed(true)}
-            />
-            {order !== undefined && (
-                <span className="absolute -top-1.5 -left-1 bg-primary text-[8px] font-bold text-black px-1 rounded-sm leading-tight">
-                    {ORDER_LABELS[order] ?? `${order + 1}th`}
-                </span>
-            )}
-        </div>
-    );
-
-    return <Tooltip name={name} description={desc} iconUrl={url}>{icon}</Tooltip>;
-}
-
-/* ─── Rune Icon ───────────────────────────────────────── */
-
-function RuneIcon({ name, size = 'sm' }: { name: string; size?: 'sm' | 'lg' }) {
-    const [failed, setFailed] = useState(false);
-    const url = getRuneImageUrl(name);
-    const desc = getRuneDescription(name);
-    const dim = size === 'lg' ? 'w-9 h-9' : 'w-7 h-7';
-    const textSz = size === 'lg' ? 'text-[10px]' : 'text-[8px]';
-
-    const icon = (!url || failed) ? (
-        (() => {
-            const color = getRuneColor(name);
-            const initials = name.split(/[\s-]/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-            return (
                 <div
-                    className={`${dim} rounded-full flex items-center justify-center ${textSz} font-bold border border-white/10 flex-shrink-0`}
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white/15 flex-shrink-0"
                     style={{ background: `${color}20`, color, borderColor: `${color}30` }}
                 >
                     {initials}
@@ -139,33 +90,76 @@ function RuneIcon({ name, size = 'sm' }: { name: string; size?: 'sm' | 'lg' }) {
         <img
             src={url}
             alt={name}
-            className={`${dim} rounded-full border border-white/10 flex-shrink-0 bg-black/30`}
+            className="w-12 h-12 rounded-full border-2 border-white/15 flex-shrink-0 bg-black/20 object-cover"
             onError={() => setFailed(true)}
         />
     );
 
-    return <Tooltip name={name} description={desc} iconUrl={url}>{icon}</Tooltip>;
+    return (
+        <Tooltip name={name} description={desc} iconUrl={url}>
+            <div className="flex flex-col items-center gap-1 w-14">
+                {circle}
+                {showLabel && (
+                    <span className="text-[9px] text-muted-foreground/80 text-center leading-tight line-clamp-2">{name}</span>
+                )}
+            </div>
+        </Tooltip>
+    );
+}
+
+/* ─── Rune Icon (circular with label) ─────────────────── */
+
+function RuneIcon({ name, showLabel = false }: { name: string; showLabel?: boolean }) {
+    const [failed, setFailed] = useState(false);
+    const url = getRuneImageUrl(name);
+    const desc = getRuneDescription(name);
+
+    const circle = (!url || failed) ? (
+        (() => {
+            const color = getRuneColor(name);
+            const initials = name.split(/[\s-]/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+            return (
+                <div
+                    className="w-11 h-11 rounded-full flex items-center justify-center text-[9px] font-bold border-2 border-white/10 flex-shrink-0"
+                    style={{ background: `${color}20`, color, borderColor: `${color}30` }}
+                >
+                    {initials}
+                </div>
+            );
+        })()
+    ) : (
+        <img
+            src={url}
+            alt={name}
+            className="w-11 h-11 rounded-full border-2 border-white/10 flex-shrink-0 bg-black/20 object-cover"
+            onError={() => setFailed(true)}
+        />
+    );
+
+    return (
+        <Tooltip name={name} description={desc} iconUrl={url}>
+            <div className="flex flex-col items-center gap-1 w-14">
+                {circle}
+                {showLabel && (
+                    <span className="text-[9px] text-muted-foreground/80 text-center leading-tight line-clamp-2">{name}</span>
+                )}
+            </div>
+        </Tooltip>
+    );
 }
 
 /* ─── Build Display ───────────────────────────────────── */
 
 function BuildDisplay({ build }: { build: ChampionBuild }) {
     return (
-        <div className="mt-2 pt-2 border-t border-primary/10">
-            <div className="flex items-center gap-2 mb-2">
-                <div className="flex gap-1.5">
-                    {build.core.map((item, i) => (
-                        <ItemIcon key={item} name={item} order={i} />
-                    ))}
-                </div>
-                <div className="h-8 w-px bg-primary/15 mx-1" />
-                <ItemIcon name={build.boots} />
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground/70">
-                <Footprints className="w-3 h-3" />
-                <span>{build.boots}</span>
-                <span className="text-primary/30">·</span>
-                <span>{build.enchant}</span>
+        <div className="mt-3 pt-3 border-t border-primary/10">
+            <div className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest mb-2">Final Build</div>
+            <div className="flex items-start gap-1.5 flex-wrap">
+                {build.core.map((item) => (
+                    <ItemIcon key={item} name={item} showLabel />
+                ))}
+                <ItemIcon name={build.boots} showLabel />
+                <ItemIcon name={build.enchant} showLabel />
             </div>
         </div>
     );
@@ -175,25 +169,13 @@ function BuildDisplay({ build }: { build: ChampionBuild }) {
 
 function RuneDisplay({ runes }: { runes: ChampionRunes }) {
     return (
-        <div className="mt-2 pt-2 border-t border-accent/10">
-            <div className="flex items-center gap-2 mb-2">
-                <RuneIcon name={runes.keystone} size="lg" />
-                <div className="h-6 w-px bg-accent/15 mx-1" />
-                <div className="flex gap-1.5">
-                    <RuneIcon name={runes.domination} />
-                    <RuneIcon name={runes.resolve} />
-                    <RuneIcon name={runes.inspiration} />
-                </div>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground/70">
-                <Sparkles className="w-3 h-3 text-accent/70" />
-                <span className="text-accent/80 font-medium">{runes.keystone}</span>
-                <span className="text-accent/30">·</span>
-                <span>{runes.domination}</span>
-                <span className="text-accent/30">·</span>
-                <span>{runes.resolve}</span>
-                <span className="text-accent/30">·</span>
-                <span>{runes.inspiration}</span>
+        <div className="mt-3 pt-3 border-t border-accent/10">
+            <div className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest mb-2">Runes</div>
+            <div className="flex items-start gap-1.5 flex-wrap">
+                <RuneIcon name={runes.keystone} showLabel />
+                <RuneIcon name={runes.domination} showLabel />
+                <RuneIcon name={runes.resolve} showLabel />
+                <RuneIcon name={runes.inspiration} showLabel />
             </div>
         </div>
     );
