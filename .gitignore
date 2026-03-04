@@ -4,3 +4,11 @@ logs/
 .env
 android-app/local.properties
 *.secrets.properties
+
+# Temp/scratch files
+temp_*.json
+temp_*.ts
+*.log
+seed.log
+error.log
+error2.log

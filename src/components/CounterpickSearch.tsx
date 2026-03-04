@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
+import { getChampionImageUrl } from '@/utils/championIcons';
 
 interface ChampionSearchProps {
     label: string;
@@ -119,13 +120,19 @@ export default function ChampionSearch({
                         <button
                             key={name}
                             type="button"
-                            className={`w-full text-left px-6 py-4 text-lg md:text-xl font-bold uppercase tracking-widest transition-all ${idx === highlightIdx
+                            className={`w-full flex items-center gap-4 text-left px-6 py-3 text-lg md:text-xl font-bold uppercase tracking-widest transition-all ${idx === highlightIdx
                                 ? 'bg-cyan-500/20 text-cyan-400 pl-8 border-l-4 border-cyan-400'
                                 : 'text-muted-foreground hover:bg-cyan-500/10 hover:text-foreground'
                                 }`}
                             onMouseEnter={() => setHighlightIdx(idx)}
                             onClick={() => selectChampion(name)}
                         >
+                            <img
+                                src={getChampionImageUrl(name)}
+                                alt={name}
+                                className="w-10 h-10 rounded-full border border-cyan-500/30 object-cover bg-black flex-shrink-0 shadow-md"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
                             {name}
                         </button>
                     ))}

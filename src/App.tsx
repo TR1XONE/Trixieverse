@@ -26,6 +26,7 @@ import AdminCounterpicksPage from "@/pages/AdminCounterpicksPage";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import AdminChatWindow from "@/components/AdminChatWindow";
 
 function Router() {
   return (
@@ -78,6 +79,7 @@ function App() {
               <TooltipProvider>
                 <Toaster />
                 <Navigation />
+                <AdminChatWindow />
                 <main className="container mx-auto px-4 py-8">
                   <Router />
                 </main>

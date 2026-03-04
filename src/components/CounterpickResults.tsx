@@ -1,6 +1,7 @@
 import { Shield, Target, AlertTriangle, Zap, Footprints, Sparkles, Plus, Minus } from 'lucide-react';
 import { getItemImageUrl, getItemColor, getItemDescription } from '@/utils/itemIcons';
 import { getRuneImageUrl, getRuneColor, getRuneDescription } from '@/utils/runeIcons';
+import { getChampionImageUrl } from '@/utils/championIcons';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -284,8 +285,14 @@ function CounterCard({ counter, index }: { counter: CounterData['counters'][0]; 
                 <span className="text-primary font-bold text-lg min-w-[24px]">#{index + 1}</span>
                 <div className="flex-1">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <span className="font-bold text-foreground text-base">{counter.name}</span>
+                        <div className="flex items-center gap-3">
+                            <img
+                                src={getChampionImageUrl(counter.name)}
+                                alt={counter.name}
+                                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full border border-primary/30 object-cover bg-black shadow-md flex-shrink-0"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                            <span className="font-bold text-foreground text-lg sm:text-xl tracking-wide">{counter.name}</span>
                         </div>
                         {hasBuildData && (
                             <button
@@ -322,8 +329,14 @@ export default function CounterpickResults({ data }: { data: CounterData }) {
         <div className="flex flex-col items-start w-full space-y-8 pb-16">
 
             {/* Champion Header */}
-            <div className="w-full text-center">
-                <h2 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 uppercase tracking-widest">
+            <div className="w-full flex flex-col items-center text-center">
+                <img
+                    src={getChampionImageUrl(data.name)}
+                    alt={data.name}
+                    className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-cyan-500/30 shadow-[0_0_40px_rgba(6,182,212,0.3)] object-cover bg-black mb-6"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+                <h2 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 uppercase tracking-widest drop-shadow-lg">
                     {data.name}
                 </h2>
                 <div className="flex justify-center flex-wrap gap-2 mt-3">

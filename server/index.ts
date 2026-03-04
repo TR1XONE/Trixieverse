@@ -39,6 +39,7 @@ import matchSyncRoutes from './routes/matchSyncRoutes';
 import blueprintRoutes from './routes/blueprintRoutes';
 import counterpickRoutes from './routes/counterpickRoutes';
 import warRoomRoutes from './routes/warRoomRoutes';
+import adminChatRoutes from './routes/adminChatRoutes';
 
 // Import services
 import logger from './utils/logger';
@@ -126,6 +127,9 @@ app.use('/api/counterpick', counterpickRoutes);
 
 // War Room AI advice routes
 app.use('/api/warroom', warRoomRoutes);
+
+// Admin AI Chat
+app.use('/api/admin', adminChatRoutes);
 
 // Static files
 const staticPath = path.resolve(__dirname, '..', 'dist', 'public');

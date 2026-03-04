@@ -16,6 +16,7 @@ interface User {
   id: string;
   email: string;
   username: string;
+  role: string;
   created_at: Date;
 }
 
@@ -39,62 +40,68 @@ class AuthService {
   private accessTokenExpiry: SignOptions['expiresIn'] = '15m';
   private refreshTokenExpiry: SignOptions['expiresIn'] = '7d';
 
+  /** Map a raw DB row to a User object */
+  private mapUser(row: any): User {
+    return {
+      id: row.id,
+      email: row.email,
+      username: row.username,
+      role: row.role ?? 'USER',
+      created_at: row.created_at,
+    };
+  }
+
+  /** Generate JWT access + refresh token pair */
+  generateTokens(payload: AuthPayload): TokenPair {
+    return {
+      accessToken: jwt.sign(payload, this.jwtSecret, { expiresIn: this.accessTokenExpiry }),
+      refreshToken: jwt.sign(payload, this.refreshSecret, { expiresIn: this.refreshTokenExpiry }),
+    };
+  }
+
+  verifyAccessToken(token: string): AuthPayload {
+    return jwt.verify(token, this.jwtSecret) as AuthPayload;
+  }
+
+  verifyRefreshToken(token: string): AuthPayload {
+    return jwt.verify(token, this.refreshSecret) as AuthPayload;
+  }
+
   private async generateUniqueUsername(base: string): Promise<string> {
-    const normalized = (base || 'discord_user')
+    const prefix = ((base || 'discord_user')
       .trim()
       .replace(/\s+/g, '_')
       .replace(/[^a-zA-Z0-9_\-]/g, '')
-      .slice(0, 24);
+      .slice(0, 24)) || 'discord_user';
 
-    const prefix = normalized.length > 0 ? normalized : 'discord_user';
-
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const candidate =
-        attempt === 0 ? prefix : `${prefix}_${Math.random().toString(16).slice(2, 6)}`;
-
-      const existing = await db.query('SELECT id FROM users WHERE username = $1', [candidate]);
-      if (existing.rows.length === 0) return candidate;
+    for (let i = 0; i < 5; i++) {
+      const candidate = i === 0 ? prefix : `${prefix}_${Math.random().toString(16).slice(2, 6)}`;
+      const { rows } = await db.query('SELECT id FROM users WHERE username = $1', [candidate]);
+      if (rows.length === 0) return candidate;
     }
-
     return `${prefix}_${Date.now()}`.slice(0, 32);
   }
 
-  /**
-   * Register a new user
-   */
   async register(email: string, username: string, password: string): Promise<User> {
-    try {
-      // Check if user already exists
-      const existingUser = await db.query(
-        'SELECT id FROM users WHERE email = $1 OR username = $2',
-        [email, username]
-      );
+    const existing = await db.query(
+      'SELECT id FROM users WHERE email = $1 OR username = $2',
+      [email, username]
+    );
+    if (existing.rows.length > 0) throw new Error('Email or username already exists');
 
-      if (existingUser.rows.length > 0) {
-        throw new Error('Email or username already exists');
-      }
-
-      // Hash password
-      const passwordHash = await bcrypt.hash(password, 10);
-
-      // Create user
-      const result = await db.query(
-        `INSERT INTO users (email, username, password_hash, last_login)
-         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-         RETURNING id, email, username, created_at`,
-        [email, username, passwordHash]
-      );
-
-      return result.rows[0];
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    const { rows } = await db.query(
+      `INSERT INTO users (email, username, password_hash, last_login)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+       RETURNING id, email, username, role, created_at`,
+      [email, username, passwordHash]
+    );
+    return this.mapUser(rows[0]);
   }
 
   /**
    * Login / register using Discord OAuth identity.
-   * Links by discord_id first, then falls back to matching existing user by email.
+   * Single query: looks up by discord_id OR email in one round-trip.
    */
   async loginWithDiscord(params: {
     discordId: string;
@@ -105,41 +112,36 @@ class AuthService {
     if (!discordId) throw new Error('Missing Discord ID');
     if (!email) throw new Error('Discord account email is required');
 
-    // 1) Try find by discord_id
-    const byDiscord = await db.query(
-      'SELECT id, email, username, created_at FROM users WHERE discord_id = $1 AND is_active = true',
-      [discordId]
+    // Single query — find by discord_id first, fall back to email
+    const { rows } = await db.query(
+      `SELECT id, email, username, role, created_at, discord_id
+       FROM users
+       WHERE (discord_id = $1 OR (email = $2 AND is_active = true))
+       ORDER BY (discord_id = $1) DESC
+       LIMIT 1`,
+      [discordId, email]
     );
 
-    let userRow = byDiscord.rows[0];
+    let userRow = rows[0];
 
-    // 2) Else, try link by email
-    if (!userRow) {
-      const byEmail = await db.query(
-        'SELECT id, email, username, created_at FROM users WHERE email = $1 AND is_active = true',
-        [email]
-      );
-      userRow = byEmail.rows[0];
-
-      if (userRow) {
-        await db.query('UPDATE users SET discord_id = $1 WHERE id = $2', [discordId, userRow.id]);
+    if (userRow) {
+      // Link discord_id if not already linked
+      if (!userRow.discord_id) {
+        await db.query('UPDATE users SET discord_id = $1, last_login = NOW() WHERE id = $2', [discordId, userRow.id]);
+      } else {
+        await db.query('UPDATE users SET last_login = NOW() WHERE id = $1', [userRow.id]);
       }
-    }
-
-    // 3) Else, create a new user with a random password
-    if (!userRow) {
+    } else {
+      // New user — create account
       const uniqueUsername = await this.generateUniqueUsername(username);
       const passwordHash = await bcrypt.hash(randomUUID(), 10);
-
       const created = await db.query(
         `INSERT INTO users (email, username, password_hash, discord_id, last_login)
-         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-         RETURNING id, email, username, created_at`,
+         VALUES ($1, $2, $3, $4, NOW())
+         RETURNING id, email, username, role, created_at`,
         [email, uniqueUsername, passwordHash, discordId]
       );
       userRow = created.rows[0];
-    } else {
-      await db.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [userRow.id]);
     }
 
     const tokens = this.generateTokens({
@@ -148,226 +150,74 @@ class AuthService {
       username: userRow.username,
     });
 
-    return {
-      user: {
-        id: userRow.id,
-        email: userRow.email,
-        username: userRow.username,
-        created_at: userRow.created_at,
-      },
-      tokens,
-    };
+    return { user: this.mapUser(userRow), tokens };
   }
 
-  /**
-   * Login user
-   */
   async login(email: string, password: string): Promise<{ user: User; tokens: TokenPair }> {
-    try {
-      // Find user
-      const result = await db.query(
-        'SELECT id, email, username, password_hash FROM users WHERE email = $1 AND is_active = true',
-        [email]
-      );
+    const { rows } = await db.query(
+      'SELECT id, email, username, role, password_hash, created_at FROM users WHERE email = $1 AND is_active = true',
+      [email]
+    );
+    if (rows.length === 0) throw new Error('Invalid email or password');
 
-      if (result.rows.length === 0) {
-        throw new Error('Invalid email or password');
-      }
-
-      const user = result.rows[0];
-
-      // Verify password
-      const passwordMatch = await bcrypt.compare(password, user.password_hash);
-      if (!passwordMatch) {
-        throw new Error('Invalid email or password');
-      }
-
-      // Update last login
-      await db.query(
-        'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
-        [user.id]
-      );
-
-      // Generate tokens
-      const tokens = this.generateTokens({
-        userId: user.id,
-        email: user.email,
-        username: user.username,
-      });
-
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          created_at: user.created_at,
-        },
-        tokens,
-      };
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+    const user = rows[0];
+    if (!(await bcrypt.compare(password, user.password_hash))) {
+      throw new Error('Invalid email or password');
     }
+
+    await db.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+
+    const tokens = this.generateTokens({ userId: user.id, email: user.email, username: user.username });
+    return { user: this.mapUser(user), tokens };
   }
 
-  /**
-   * Generate JWT tokens
-   */
-  generateTokens(payload: AuthPayload): TokenPair {
-    const accessToken = jwt.sign(payload, this.jwtSecret, {
-      expiresIn: this.accessTokenExpiry,
-    });
-
-    const refreshToken = jwt.sign(payload, this.refreshSecret, {
-      expiresIn: this.refreshTokenExpiry,
-    });
-
-    return { accessToken, refreshToken };
-  }
-
-  /**
-   * Verify access token
-   */
-  verifyAccessToken(token: string): AuthPayload {
-    try {
-      return jwt.verify(token, this.jwtSecret) as AuthPayload;
-    } catch (error) {
-      throw new Error('Invalid or expired token');
-    }
-  }
-
-  /**
-   * Verify refresh token
-   */
-  verifyRefreshToken(token: string): AuthPayload {
-    try {
-      return jwt.verify(token, this.refreshSecret) as AuthPayload;
-    } catch (error) {
-      throw new Error('Invalid or expired refresh token');
-    }
-  }
-
-  /**
-   * Refresh access token
-   */
   async refreshAccessToken(refreshToken: string): Promise<TokenPair> {
-    try {
-      const payload = this.verifyRefreshToken(refreshToken);
-
-      // Get fresh user data
-      const result = await db.query(
-        'SELECT id, email, username FROM users WHERE id = $1 AND is_active = true',
-        [payload.userId]
-      );
-
-      if (result.rows.length === 0) {
-        throw new Error('User not found');
-      }
-
-      const user = result.rows[0];
-
-      // Generate new tokens
-      return this.generateTokens({
-        userId: user.id,
-        email: user.email,
-        username: user.username,
-      });
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      throw error;
-    }
+    const payload = this.verifyRefreshToken(refreshToken);
+    const { rows } = await db.query(
+      'SELECT id, email, username FROM users WHERE id = $1 AND is_active = true',
+      [payload.userId]
+    );
+    if (rows.length === 0) throw new Error('User not found');
+    return this.generateTokens({ userId: rows[0].id, email: rows[0].email, username: rows[0].username });
   }
 
-  /**
-   * Get user by ID
-   */
   async getUserById(userId: string): Promise<User | null> {
-    try {
-      const result = await db.query(
-        'SELECT id, email, username, created_at FROM users WHERE id = $1 AND is_active = true',
-        [userId]
-      );
-
-      return result.rows[0] || null;
-    } catch (error) {
-      console.error('Get user error:', error);
-      throw error;
-    }
+    const { rows } = await db.query(
+      'SELECT id, email, username, role, created_at FROM users WHERE id = $1 AND is_active = true',
+      [userId]
+    );
+    return rows[0] ? this.mapUser(rows[0]) : null;
   }
 
-  /**
-   * Update user profile
-   */
   async updateProfile(userId: string, email?: string, username?: string): Promise<User> {
-    try {
-      const updates: string[] = [];
-      const params: any[] = [userId];
-      let paramIndex = 2;
+    const updates: string[] = [];
+    const params: any[] = [userId];
+    let i = 2;
+    if (email) { updates.push(`email = $${i++}`); params.push(email); }
+    if (username) { updates.push(`username = $${i++}`); params.push(username); }
+    if (updates.length === 0) throw new Error('No updates provided');
 
-      if (email) {
-        updates.push(`email = $${paramIndex}`);
-        params.push(email);
-        paramIndex++;
-      }
-
-      if (username) {
-        updates.push(`username = $${paramIndex}`);
-        params.push(username);
-        paramIndex++;
-      }
-
-      if (updates.length === 0) {
-        throw new Error('No updates provided');
-      }
-
-      const result = await db.query(
-        `UPDATE users SET ${updates.join(', ')} WHERE id = $1
-         RETURNING id, email, username, created_at`,
-        params
-      );
-
-      return result.rows[0];
-    } catch (error) {
-      console.error('Update profile error:', error);
-      throw error;
-    }
+    const { rows } = await db.query(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = $1
+       RETURNING id, email, username, role, created_at`,
+      params
+    );
+    return this.mapUser(rows[0]);
   }
 
-  /**
-   * Change password
-   */
   async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<void> {
-    try {
-      // Get user
-      const result = await db.query(
-        'SELECT password_hash FROM users WHERE id = $1',
-        [userId]
-      );
-
-      if (result.rows.length === 0) {
-        throw new Error('User not found');
-      }
-
-      const user = result.rows[0];
-
-      // Verify old password
-      const passwordMatch = await bcrypt.compare(oldPassword, user.password_hash);
-      if (!passwordMatch) {
-        throw new Error('Invalid password');
-      }
-
-      // Hash new password
-      const newPasswordHash = await bcrypt.hash(newPassword, 10);
-
-      // Update password
-      await db.query(
-        'UPDATE users SET password_hash = $1 WHERE id = $2',
-        [newPasswordHash, userId]
-      );
-    } catch (error) {
-      console.error('Change password error:', error);
-      throw error;
+    const { rows } = await db.query(
+      'SELECT password_hash FROM users WHERE id = $1',
+      [userId]
+    );
+    if (rows.length === 0) throw new Error('User not found');
+    if (!(await bcrypt.compare(oldPassword, rows[0].password_hash))) {
+      throw new Error('Invalid password');
     }
+    await db.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [await bcrypt.hash(newPassword, 10), userId]
+    );
   }
 }
 

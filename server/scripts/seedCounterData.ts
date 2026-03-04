@@ -3,11 +3,11 @@ import { counterpickData } from '../data/counterpickData.ts';
 import { championBuilds } from '../data/championBuilds.ts';
 import { championRunes } from '../data/championRunes.ts';
 
-async function seedCounterData() {
+export async function seedCounterData(skipConnect = false) {
     console.log('🌱 Starting Counterpick Data Seeding...');
 
-    // The Database service isn't connected by default in scripts, so we connect first
-    await db.connect();
+    // Only connect if called standalone (not from initDb which is already connected)
+    if (!skipConnect) await db.connect();
 
     try {
         await db.transaction(async (client) => {
