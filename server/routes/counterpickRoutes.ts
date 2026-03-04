@@ -31,8 +31,8 @@ router.get('/:champion', async (req: Request, res: Response) => {
 
         const champion = champRes.rows[0];
 
-        // Fetch their own build and runes
-        const buildRes = await db.query('SELECT * FROM champion_builds WHERE champion_id = $1 ORDER BY patch_version DESC LIMIT 1', [champion.id]);
+        // Fetch their own top 3 builds and runes
+        const buildRes = await db.query('SELECT * FROM champion_builds WHERE champion_id = $1 ORDER BY rank ASC LIMIT 3', [champion.id]);
         const runeRes = await db.query('SELECT * FROM champion_runes WHERE champion_id = $1 ORDER BY patch_version DESC LIMIT 1', [champion.id]);
 
         // Fetch counters (who counters this champion)
@@ -53,7 +53,7 @@ router.get('/:champion', async (req: Request, res: Response) => {
         `;
         const countersRes = await db.query(countersQuery, [champion.id]);
 
-        const formatBuild = (b: any) => b ? { core: b.core_items, boots: b.boots, enchant: b.enchant, situational: b.situational } : null;
+        const formatBuild = (b: any) => b ? { core: b.core_items, boots: b.boots, enchant: b.enchant, situational: b.situational_items || b.situational } : null;
         const formatRunes = (r: any) => r ? { keystone: r.keystone, domination: r.domination, resolve: r.resolve, inspiration: r.inspiration } : null;
 
         // Since win_conditions and weaknesses were stored at the matchup level in the seed data, 
@@ -71,7 +71,7 @@ router.get('/:champion', async (req: Request, res: Response) => {
             powerSpikes: champion.power_spikes,
             winConditions: typeof winConditions === 'string' ? JSON.parse(winConditions) : winConditions,
             weaknesses: typeof weaknesses === 'string' ? JSON.parse(weaknesses) : weaknesses,
-            selfBuild: formatBuild(buildRes.rows[0]),
+            selfBuilds: buildRes.rows.map(formatBuild).filter(Boolean),
             selfRunes: formatRunes(runeRes.rows[0]),
             counters: countersRes.rows.map(row => ({
                 name: row.name,

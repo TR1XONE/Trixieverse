@@ -60,7 +60,7 @@ interface CounterData {
     winConditions: string[];
     weaknesses: string[];
     powerSpikes: string;
-    selfBuild?: ChampionBuild | null;
+    selfBuilds?: ChampionBuild[];
     selfRunes?: ChampionRunes | null;
 }
 
@@ -321,7 +321,10 @@ function CounterCard({ counter, index }: { counter: CounterData['counters'][0]; 
 /* ─── Main Component ──────────────────────────────────── */
 
 export default function CounterpickResults({ data }: { data: CounterData }) {
-    const build = data.selfBuild || data.counters[0]?.build;
+    const [activeRank, setActiveRank] = useState(0);
+
+    const builds = data.selfBuilds?.length ? data.selfBuilds : (data.counters[0]?.build ? [data.counters[0].build] : []);
+    const build = builds[activeRank] || builds[0];
     const runes = data.selfRunes || data.counters[0]?.runes;
     const skillOrder = SKILL_ORDER[data.name] || ['1', '3', '2', 'Ult'];
 
@@ -356,9 +359,30 @@ export default function CounterpickResults({ data }: { data: CounterData }) {
                 {/* Build Order */}
                 {build && (
                     <div className="w-full opacity-0 animate-[fadeInUp_0.5s_ease-out_0.15s_forwards]">
-                        <h3 className="flex items-center gap-2 text-xs font-black text-cyan-400 uppercase tracking-widest mb-3">
-                            <Zap className="w-4 h-4" /> Build Order
-                        </h3>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                            <h3 className="flex items-center gap-2 text-xs font-black text-cyan-400 uppercase tracking-widest">
+                                <Zap className="w-4 h-4" /> Build Order
+                            </h3>
+
+                            {/* Top 3 Builds Tab Selector */}
+                            {builds.length > 1 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {builds.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setActiveRank(i)}
+                                            className={`px-4 py-1.5 rounded text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all ${activeRank === i
+                                                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
+                                                    : 'bg-black/20 text-muted-foreground border border-white/10 hover:bg-white/5 hover:text-white'
+                                                }`}
+                                        >
+                                            Rank {i + 1}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex flex-wrap items-center gap-2">
                             {build.core.map((item, idx) => (
                                 <div key={idx} className="flex items-center gap-2">

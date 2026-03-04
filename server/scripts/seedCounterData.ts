@@ -26,31 +26,54 @@ export async function seedCounterData(skipConnect = false) {
                 championIdMap[champ.name] = res.rows[0].id;
             }
 
-            // 2. Insert Builds
-            console.log(`Inserting ${Object.keys(championBuilds).length} builds...`);
-            for (const [champName, build] of Object.entries(championBuilds)) {
-                const id = championIdMap[champName];
-                if (!id) {
-                    console.warn(`⚠️ Warning: No champion ID found for build ${champName}`);
-                    continue;
-                }
+            // 2. Insert Champion Builds (Top 3 Ranks)
+            console.log(`Inserting ${Object.keys(championBuilds).length * 3} champion builds...`);
 
-                await client.query(
-                    `INSERT INTO champion_builds (champion_id, core_items, boots, enchant, situational) 
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (champion_id, patch_version) DO UPDATE SET 
-            core_items = EXCLUDED.core_items,
-            boots = EXCLUDED.boots,
-            enchant = EXCLUDED.enchant,
-            situational = EXCLUDED.situational`,
-                    [
-                        id,
-                        JSON.stringify(build.core || []),
-                        build.boots || 'Basic Boots',
-                        build.enchant || 'Stasis',
-                        JSON.stringify(build.situational || [])
-                    ]
-                );
+            for (const [champName, build] of Object.entries(championBuilds)) {
+                const champId = championIdMap[champName];
+                if (champId) {
+                    const situational = build.situational || [];
+
+                    // Rank 1 Build: The standard core build
+                    const rank1Core = [...(build.core || [])];
+                    const rank1Boots = build.boots || 'Basic Boots';
+                    const rank1Enchant = build.enchant || 'Stasis';
+
+                    // Rank 2 Build: A variation replacing the 4th core item with a situational item if available
+                    let rank2Core = [...(build.core || [])];
+                    if (situational.length > 0 && rank2Core.length > 0) {
+                        rank2Core[rank2Core.length - 1] = situational[0];
+                    }
+                    const rank2Boots = build.boots || 'Basic Boots';
+                    const rank2Enchant = situational.length > 2 ? situational[2] : (build.enchant || 'Stasis'); // Fake variation
+
+                    // Rank 3 Build: Another variation replacing the 3rd core item if available
+                    let rank3Core = [...(build.core || [])];
+                    if (situational.length > 1 && rank3Core.length > 2) {
+                        rank3Core[rank3Core.length - 2] = situational[1];
+                    }
+
+                    const buildsToInsert = [
+                        { rank: 1, core: rank1Core, boots: rank1Boots, enchant: rank1Enchant },
+                        { rank: 2, core: rank2Core, boots: rank2Boots, enchant: rank2Enchant },
+                        { rank: 3, core: rank3Core, boots: (build.boots || 'Basic Boots'), enchant: (build.enchant || 'Stasis') }
+                    ];
+
+                    for (const b of buildsToInsert) {
+                        await client.query(
+                            `INSERT INTO champion_builds (champion_id, rank, core_items, boots, enchant, situational_items)
+                             VALUES ($1, $2, $3, $4, $5, $6)
+                             ON CONFLICT (champion_id, rank) DO UPDATE 
+                             SET core_items = EXCLUDED.core_items,
+                                 boots = EXCLUDED.boots,
+                                 enchant = EXCLUDED.enchant,
+                                 situational_items = EXCLUDED.situational_items`,
+                            [champId, b.rank, b.core, b.boots, b.enchant, situational]
+                        );
+                    }
+                } else {
+                    console.warn(`⚠️ Warning: No champion ID found for build ${champName}`);
+                }
             }
 
             // 3. Insert Runes

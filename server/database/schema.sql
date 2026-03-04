@@ -260,15 +260,15 @@ CREATE TABLE IF NOT EXISTS champions (
 -- Champion Core Builds
 CREATE TABLE IF NOT EXISTS champion_builds (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  champion_id UUID NOT NULL REFERENCES champions(id) ON DELETE CASCADE,
-  core_items JSONB NOT NULL, -- Array of strings
+  champion_id UUID REFERENCES champions(id) ON DELETE CASCADE,
+  rank INTEGER NOT NULL DEFAULT 1,
+  core_items TEXT[] NOT NULL,
   boots VARCHAR(100) NOT NULL,
   enchant VARCHAR(100) NOT NULL,
-  situational JSONB, -- Array of strings
-  patch_version VARCHAR(20) DEFAULT 'current',
+  situational_items TEXT[],
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(champion_id, patch_version)
+  UNIQUE(champion_id, rank)
 );
 
 -- Champion Runes
