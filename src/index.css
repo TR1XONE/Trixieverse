@@ -54,7 +54,7 @@
   --chart-4: #ec4899;
   --chart-5: #f59e0b;
   --radius: 0.5rem;
-  --background: #0f172a;
+  --background: #000000;
   --foreground: #e2e8f0;
   --card: #1e293b;
   --card-foreground: #e2e8f0;
@@ -86,7 +86,7 @@
   --primary-foreground: #0f172a;
   --sidebar-primary: #0ea5e9;
   --sidebar-primary-foreground: #0f172a;
-  --background: #0a0e27;
+  --background: #000000;
   --foreground: #e2e8f0;
   --card: #1a1f3a;
   --card-foreground: #e2e8f0;
@@ -120,16 +120,24 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     font-family: "Inter", "Roboto", sans-serif;
   }
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: "Space Mono", "IBM Plex Mono", monospace;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [type="button"]:not(:disabled),
@@ -221,13 +229,11 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      rgba(0, 0, 0, 0.15),
-      rgba(0, 0, 0, 0.15) 1px,
-      transparent 1px,
-      transparent 2px
-    );
+    background: repeating-linear-gradient(0deg,
+        rgba(0, 0, 0, 0.15),
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 2px);
     pointer-events: none;
   }
 
@@ -249,9 +255,12 @@
 
 /* Animations */
 @keyframes glow-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
   }
+
   50% {
     box-shadow: 0 0 40px rgba(14, 165, 233, 0.6);
   }
@@ -261,6 +270,7 @@
   0% {
     transform: translateY(0);
   }
+
   100% {
     transform: translateY(10px);
   }
@@ -272,4 +282,20 @@
 
 .animate-scanline {
   animation: scanline-scroll 8s linear infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
 }

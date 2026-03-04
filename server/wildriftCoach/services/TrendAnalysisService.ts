@@ -2,7 +2,7 @@ import type { MatchStats } from '../models/MatchStats';
 import type { PlayerTrend, TrendMetric } from '../models/PlayerTrend';
 import { z } from 'zod';
 import logger from '../../utils/logger';
-import { getOpenAIClient, getOpenAIModel } from './openaiClient';
+import { getGeminiClient, getGeminiModel } from './geminiClient';
 
 export interface TrendAnalysisInput {
   puuid: string;
@@ -15,46 +15,26 @@ export class TrendAnalysisService {
     const fallback = this.buildFallback(input);
 
     try {
-      const openai = getOpenAIClient();
-      const model = getOpenAIModel();
+      const ai = getGeminiClient();
+      const modelName = getGeminiModel();
 
-      const system =
-        'You are a Wild Rift coach. Return only valid JSON. No markdown. No extra keys.';
+      const prompt = `You are a Wild Rift coach. Return ONLY valid JSON, no markdown, no extra keys.
+Analyze player trends across these recent matches:
+Schema: { "puuid": string, "windowSize": number, "summary": { "winRate": number, "avgKDA": number }, "metrics": [{"name": string, "value": number}], "recentMatches": [] }
+puuid: "${input.puuid}"
+windowSize: ${input.windowSize ?? input.matches.length}
+Matches: ${JSON.stringify(input.matches)}`;
 
-      const user = {
-        instruction:
-          'Analyze player trends across the recent matches. Identify key metrics and provide a concise summary for coaching.',
-        puuid: input.puuid,
-        windowSize: input.windowSize ?? input.matches.length,
-        matches: input.matches,
-        output: {
-          puuid: 'string',
-          windowSize: 'number',
-          summary: {
-            winRate: 'number (0-1)',
-            avgKDA: 'number',
-            avgGold: 'number (optional)',
-            avgDamage: 'number (optional)',
-          },
-          metrics: [{ name: 'string', value: 'number', delta: 'number (optional)' }],
-          recentMatches: 'array of matches (can be empty)'
-        },
-      };
-
-      const response = await openai.chat.completions.create({
-        model,
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: JSON.stringify(user) },
-        ],
+      const result = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
       });
-
-      const content = response.choices?.[0]?.message?.content;
+      const content = result.text ?? '';
       if (!content) return fallback;
 
-      const parsed = playerTrendSchema.safeParse(JSON.parse(content));
+      const cleaned = content.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+
+      const parsed = playerTrendSchema.safeParse(JSON.parse(cleaned));
       if (!parsed.success) {
         logger.warn('Wild Rift trend analysis failed schema validation', {
           issues: parsed.error.issues,
@@ -85,7 +65,7 @@ export class TrendAnalysisService {
 
     const avgKDA = recentMatches.length
       ? recentMatches.reduce((acc, m) => acc + (m.kda.kills + m.kda.assists) / Math.max(1, m.kda.deaths), 0) /
-        recentMatches.length
+      recentMatches.length
       : 0;
 
     const metrics: TrendMetric[] = [

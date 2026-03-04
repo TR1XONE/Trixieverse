@@ -82,7 +82,8 @@ router.get('/discord/start', (req: Request, res: Response) => {
     url.searchParams.set('client_id', clientId);
     url.searchParams.set('redirect_uri', redirectUri);
     url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', 'identify email');
+    // Requesting 'identify', 'email', and 'guilds.join' so we can add them to the Discord server
+    url.searchParams.set('scope', 'identify email guilds.join');
     url.searchParams.set('state', state);
 
     res.redirect(302, url.toString());
@@ -167,6 +168,36 @@ router.post('/discord/exchange', async (req: Request, res: Response) => {
       email,
       username,
     });
+
+    // ─── Auto-join Discord Server ───
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+    const guildId = process.env.DISCORD_GUILD_ID;
+
+    if (botToken && guildId) {
+      try {
+        const joinRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${discordId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bot ${botToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            access_token: discordAccessToken
+          })
+        });
+
+        if (joinRes.ok) {
+          console.log(`[Discord] Successfully added/updated user ${username} in guild ${guildId}`);
+        } else {
+          const joinError = await joinRes.text();
+          console.warn(`[Discord] Failed to add user ${username} to guild:`, joinError);
+        }
+      } catch (e) {
+        console.error('[Discord] Error adding user to guild:', e);
+      }
+    } else {
+      console.warn('[Discord] Missing DISCORD_BOT_TOKEN or DISCORD_GUILD_ID in .env, skipping auto-join.');
+    }
 
     res.json({
       success: true,

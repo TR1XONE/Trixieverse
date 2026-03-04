@@ -53,10 +53,10 @@ export default function SignupPage() {
     try {
       await signup(formData.email, formData.username, formData.password);
       setSuccess('Account created successfully!');
-      
+
       // Redirect to dashboard
       setTimeout(() => {
-        navigate('/');
+        navigate('/onboarding');
       }, 500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');

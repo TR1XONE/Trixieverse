@@ -1,213 +1,153 @@
-import { Button } from '@/components/ui/button';
-import { useCoach } from '@/contexts/CoachContext';
-import { useState } from 'react';
-import { Send, Lightbulb, Target, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Bot, Shield } from 'lucide-react';
+import CounterpickSearch from '@/components/CounterpickSearch';
+import CounterpickResults from '@/components/CounterpickResults';
 
-const CHAMPIONS = [
-  'Tryndamere', 'Garen', 'Darius', 'Fiora', 'Olaf',
-  'Lux', 'Ahri', 'Akali', 'Yasuo', 'Zed',
-  'Lee Sin', 'Evelynn', 'Kha\'Zix', 'Graves', 'Nidalee',
-  'Caitlyn', 'Jinx', 'Ashe', 'Draven', 'Vayne',
-  'Lulu', 'Thresh', 'Leona', 'Blitzcrank', 'Alistar',
-];
-
-const ROLES = ['solo', 'jungle', 'mid', 'duo', 'support'] as const;
-
-interface CoachAdvice {
-  strategy: string;
-  items: string[];
-  macroGoal: string;
-  encouragement: string;
+interface CounterData {
+  name: string;
+  role: string[];
+  counters: { name: string; reason: string; build?: any; runes?: any }[];
+  winConditions: string[];
+  weaknesses: string[];
+  powerSpikes: string;
 }
 
+type Tab = 'counterpick' | 'coach';
+
 export default function WarRoom() {
-  const { addMatchAnalysis, userProfile } = useCoach();
-  const [selectedRole, setSelectedRole] = useState<string>('');
-  const [selectedChampion, setSelectedChampion] = useState<string>('');
-  const [enemies, setEnemies] = useState<string[]>([]);
-  const [advice, setAdvice] = useState<CoachAdvice | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('counterpick');
+
+  // Counterpick state
+  const [champions, setChampions] = useState<string[]>([]);
+  const [enemy, setEnemy] = useState('');
+  const [result, setResult] = useState<CounterData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const generateCoachAdvice = async () => {
-    if (!selectedRole || !selectedChampion) {
-      alert('Please select your role and champion');
-      return;
-    }
+  useEffect(() => {
+    fetch('/api/counterpick/champions')
+      .then((r) => r.json())
+      .then((data) => setChampions(Array.isArray(data) ? data : []))
+      .catch(() => setChampions([]));
+  }, []);
 
+  useEffect(() => {
+    if (!enemy) { setResult(null); return; }
     setLoading(true);
-
-    // Simulate AI coach analysis
-    setTimeout(() => {
-      const mockAdvice: CoachAdvice = {
-        strategy: `Great choice with ${selectedChampion} in the ${selectedRole} lane! ${
-          enemies.length > 0
-            ? `Against ${enemies.slice(0, 2).join(' and ')}, focus on playing around their cooldowns.`
-            : 'Focus on farming efficiently and watching for roam opportunities.'
-        } Your early game is crucial - play safe until you hit your power spike.`,
-        items: [
-          'Build defensive items first if behind',
-          'Consider Maw of Malmortius if enemies have AP',
-          'Prioritize boots for mobility',
-        ],
-        macroGoal: `Your role is to ${
-          selectedRole === 'solo' ? 'split push and apply side lane pressure'
-          : selectedRole === 'jungle' ? 'secure objectives and gank priority lanes'
-          : selectedRole === 'mid' ? 'control the map and roam to impact other lanes'
-          : selectedRole === 'duo' ? 'farm safely and position for teamfights'
-          : 'protect your ADC and enable teamfights'
-        }. Focus on this throughout the game.`,
-        encouragement: `You've got this! ${selectedChampion} is a strong pick right now. Remember: stay calm, farm efficiently, and make smart macro decisions. Every small improvement counts. Let's climb! 💪`,
-      };
-
-      setAdvice(mockAdvice);
-      addMatchAnalysis({
-        champion: selectedChampion,
-        role: selectedRole,
-        enemies: enemies,
-        coachAdvice: mockAdvice.strategy,
-        itemRecommendations: mockAdvice.items,
-        macroGoal: mockAdvice.macroGoal,
-      });
-
-      setLoading(false);
-    }, 1500);
-  };
-
-  const toggleEnemy = (champion: string) => {
-    setEnemies((prev) =>
-      prev.includes(champion) ? prev.filter((c) => c !== champion) : [...prev, champion]
-    );
-  };
+    fetch(`/api/counterpick/${encodeURIComponent(enemy)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { setResult(data); setLoading(false); })
+      .catch(() => { setResult(null); setLoading(false); });
+  }, [enemy]);
 
   return (
-    <div className="space-y-8">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-2 uppercase tracking-wider">⚔️ The War Room</h1>
-        <p className="text-lg text-foreground max-w-2xl mx-auto">
-          Tell me about your match setup, and I'll give you personalized coaching advice
-        </p>
+    <div className="space-y-6">
+      {/* Tab bar */}
+      <div className="flex gap-2 border-b border-border pb-0">
+        <TabButton
+          active={activeTab === 'counterpick'}
+          onClick={() => setActiveTab('counterpick')}
+          icon={<Shield className="w-4 h-4" />}
+          label="Counterpick"
+        />
+        <TabButton
+          active={activeTab === 'coach'}
+          onClick={() => setActiveTab('coach')}
+          icon={<Bot className="w-4 h-4" />}
+          label="Coach"
+          badge="Coming Soon"
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Input Section */}
-        <div className="space-y-6">
-          {/* Role Selection */}
-          <div className="coaching-card p-6 neon-glow">
-            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2 uppercase tracking-wider">
-              <Zap className="w-5 h-5 text-primary" />
-              Your Role
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              {ROLES.map((role) => (
-                <button
-                  key={role}
-                  onClick={() => setSelectedRole(role)}
-                  className={`px-4 py-3 rounded-sm font-bold uppercase tracking-wider transition-all duration-200 border-2 ${
-                    selectedRole === role
-                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/50 border-primary'
-                      : 'bg-muted/30 text-foreground hover:bg-muted/50 hover:border-primary/50 border-muted/50'
-                  }`}
-                >
-                  {role === 'duo' ? 'ADC' : role === 'solo' ? 'Baron' : role}
-                </button>
-              ))}
+      {/* Counterpick tab — identical to simple-trixieverse */}
+      {activeTab === 'counterpick' && (
+        <div className="space-y-8">
+          {/* Search */}
+          <div className="max-w-md mx-auto">
+            <CounterpickSearch
+              label="Enemy Champion"
+              placeholder="e.g. Yasuo"
+              champions={champions}
+              value={enemy}
+              onChange={setEnemy}
+              accentColor="primary"
+            />
+          </div>
+
+          {/* Loading */}
+          {loading && <LoadingCard />}
+
+          {/* Results */}
+          {result && !loading && (
+            <div className="max-w-2xl mx-auto mt-6">
+              <CounterpickResults data={result} />
             </div>
-          </div>
+          )}
 
-          {/* Champion Selection */}
-          <div className="coaching-card p-6 neon-glow">
-            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2 uppercase tracking-wider">
-              <Target className="w-5 h-5 text-secondary" />
-              Your Champion
-            </h3>
-            <select
-              value={selectedChampion}
-              onChange={(e) => setSelectedChampion(e.target.value)}
-              className="w-full px-4 py-3 rounded-sm border-2 border-secondary/50 bg-input text-foreground hover:border-secondary/80 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
-            >
-              <option value="">Select a champion...</option>
-              {CHAMPIONS.map((champ) => (
-                <option key={champ} value={champ}>
-                  {champ}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Enemy Selection */}
-          <div className="coaching-card p-6 neon-glow">
-            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2 uppercase tracking-wider">
-              <Lightbulb className="w-5 h-5 text-accent" />
-              Enemy Team (Optional)
-            </h3>
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-              {CHAMPIONS.map((champ) => (
-                <button
-                  key={champ}
-                  onClick={() => toggleEnemy(champ)}
-                  className={`px-3 py-2 rounded-sm text-sm font-bold uppercase tracking-wider transition-all duration-200 border-2 ${
-                    enemies.includes(champ)
-                      ? 'bg-destructive text-white border-destructive shadow-lg shadow-destructive/50'
-                      : 'bg-muted/30 text-foreground hover:bg-muted/50 border-muted/50 hover:border-destructive/50'
-                  }`}
-                >
-                  {champ}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <Button
-            onClick={generateCoachAdvice}
-            disabled={!selectedRole || !selectedChampion || loading}
-            className="w-full gaming-button py-6 text-lg"
-          >
-            {loading ? 'Analyzing...' : 'Get Coach Advice'}
-            <Send className="w-5 h-5 ml-2" />
-          </Button>
-        </div>
-
-        {/* Advice Section */}
-        <div className="space-y-4">
-          {advice ? (
-            <>
-              <div className="coaching-card p-6 border-l-4 border-primary neon-glow">
-                <h3 className="text-lg font-bold text-foreground mb-3 uppercase tracking-wider">Strategy</h3>
-                <p className="text-foreground leading-relaxed">{advice.strategy}</p>
-              </div>
-
-              <div className="coaching-card p-6 border-l-4 border-secondary neon-glow">
-                <h3 className="text-lg font-bold text-foreground mb-3 uppercase tracking-wider">Item Recommendations</h3>
-                <ul className="space-y-2">
-                  {advice.items.map((item, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <span className="text-secondary font-bold">▸</span>
-                      <span className="text-foreground">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="coaching-card p-6 border-l-4 border-accent neon-glow">
-                <h3 className="text-lg font-bold text-foreground mb-3 uppercase tracking-wider">Macro Goal</h3>
-                <p className="text-foreground leading-relaxed">{advice.macroGoal}</p>
-              </div>
-
-              <div className="coaching-card p-6 bg-gradient-to-br from-primary/20 to-secondary/20 border-l-4 border-primary neon-glow">
-                <h3 className="text-lg font-bold text-foreground mb-3 uppercase tracking-wider">💪 Coach's Encouragement</h3>
-                <p className="text-foreground leading-relaxed italic">{advice.encouragement}</p>
-              </div>
-            </>
-          ) : (
-            <div className="coaching-card p-12 text-center h-full flex flex-col items-center justify-center neon-glow">
-              <Lightbulb className="w-16 h-16 text-muted-foreground/30 mb-4 animate-pulse" />
+          {/* Empty state */}
+          {!result && !loading && (
+            <div className="coaching-card p-12 text-center neon-glow animate-glow-pulse max-w-md mx-auto">
+              <Sparkles className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
               <p className="text-muted-foreground text-lg">
-                Fill in your match details and I'll provide personalized coaching advice
+                Search for an enemy champion above to get counterpick intel
               </p>
             </div>
           )}
         </div>
-      </div>
+      )}
+
+      {/* Coach tab — coming soon */}
+      {activeTab === 'coach' && (
+        <div className="coaching-card p-16 text-center neon-glow max-w-md mx-auto">
+          <Bot className="w-14 h-14 text-primary/40 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-foreground mb-2">AI Coach</h3>
+          <p className="text-muted-foreground">
+            Gemini-powered pre-match coaching is coming soon. Stay tuned!
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+  badge,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  badge?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-all -mb-px cursor-pointer ${active
+        ? 'border-primary text-primary'
+        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+        }`}
+    >
+      {icon}
+      {label}
+      {badge && (
+        <span className="ml-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function LoadingCard() {
+  return (
+    <div className="coaching-card p-8 text-center neon-glow max-w-md mx-auto">
+      <div className="animate-shimmer rounded-sm h-6 w-48 mx-auto mb-3 bg-muted/30" />
+      <div className="animate-shimmer rounded-sm h-4 w-64 mx-auto mb-2 bg-muted/20" />
+      <div className="animate-shimmer rounded-sm h-4 w-56 mx-auto bg-muted/20" />
+      <p className="text-muted-foreground mt-4 text-sm uppercase tracking-wider">Analyzing...</p>
     </div>
   );
 }

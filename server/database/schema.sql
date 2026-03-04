@@ -241,3 +241,77 @@ CREATE TRIGGER update_champion_stats_updated_at BEFORE UPDATE ON champion_stats
 
 CREATE TRIGGER update_goals_updated_at BEFORE UPDATE ON goals
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- COUNTERPICK DATA (TrixieVerse Core Feature)
+-- ============================================================================
+
+-- Champions Catalog
+CREATE TABLE IF NOT EXISTS champions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) UNIQUE NOT NULL,
+  roles VARCHAR(50)[] NOT NULL,
+  power_spikes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Champion Core Builds
+CREATE TABLE IF NOT EXISTS champion_builds (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  champion_id UUID NOT NULL REFERENCES champions(id) ON DELETE CASCADE,
+  core_items JSONB NOT NULL, -- Array of strings
+  boots VARCHAR(100) NOT NULL,
+  enchant VARCHAR(100) NOT NULL,
+  situational JSONB, -- Array of strings
+  patch_version VARCHAR(20) DEFAULT 'current',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(champion_id, patch_version)
+);
+
+-- Champion Runes
+CREATE TABLE IF NOT EXISTS champion_runes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  champion_id UUID NOT NULL REFERENCES champions(id) ON DELETE CASCADE,
+  keystone VARCHAR(100) NOT NULL,
+  domination VARCHAR(100) NOT NULL,
+  resolve VARCHAR(100) NOT NULL,
+  inspiration VARCHAR(100) NOT NULL,
+  patch_version VARCHAR(20) DEFAULT 'current',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(champion_id, patch_version)
+);
+
+-- Matchups (Counters)
+CREATE TABLE IF NOT EXISTS matchups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  champion_id UUID NOT NULL REFERENCES champions(id) ON DELETE CASCADE,
+  enemy_id UUID NOT NULL REFERENCES champions(id) ON DELETE CASCADE,
+  win_rate FLOAT, -- e.g., 52.5
+  tier INTEGER DEFAULT 1, -- 1 = Hard Counter, 2 = Soft Counter
+  matchup_details TEXT NOT NULL, -- "Reason"
+  win_conditions JSONB, -- Array of strings
+  weaknesses JSONB, -- Array of strings
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(champion_id, enemy_id)
+);
+
+-- Indexes for counterpick lookups
+CREATE INDEX idx_champions_name ON champions(name);
+CREATE INDEX idx_matchups_champion_id ON matchups(champion_id);
+CREATE INDEX idx_matchups_enemy_id ON matchups(enemy_id);
+
+CREATE TRIGGER update_champions_updated_at BEFORE UPDATE ON champions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_champion_builds_updated_at BEFORE UPDATE ON champion_builds
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_champion_runes_updated_at BEFORE UPDATE ON champion_runes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_matchups_updated_at BEFORE UPDATE ON matchups
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

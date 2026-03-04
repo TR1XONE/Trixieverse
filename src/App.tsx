@@ -6,16 +6,23 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Navigation from "@/components/Navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NotFound from "@/pages/NotFound";
-import Dashboard from "@/pages/Dashboard";
-import WarRoomPage from "@/pages/WarRoomPage";
-import LibraryPage from "@/pages/LibraryPage";
-import CoachPersonalityPage from "@/pages/CoachPersonalityPage";
-import CoachOSPage from "@/pages/CoachOSPage";
-import AccountSettingsPage from "@/pages/AccountSettingsPage";
-import UserProfilePage from "@/pages/UserProfilePage";
+
+// Public pages
+import CounterpickPage from "@/pages/CounterpickPage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
+import OnboardingPage from "@/pages/OnboardingPage";
 import DiscordCallbackPage from "@/pages/DiscordCallbackPage";
+
+// Protected pages (kept for future use)
+import UserProfilePage from "@/pages/UserProfilePage";
+import AccountSettingsPage from "@/pages/AccountSettingsPage";
+
+// Admin pages
+import AdminRoute from "@/components/AdminRoute";
+import AdminDashboardPage from "@/pages/AdminDashboardPage";
+import AdminCounterpicksPage from "@/pages/AdminCounterpicksPage";
+
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -23,51 +30,39 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 function Router() {
   return (
     <Switch>
-      {/* Public Routes */}
-      <Route path={"/login"} component={LoginPage} />
-      <Route path={"/signup"} component={SignupPage} />
-      <Route path={"/discord/callback"} component={DiscordCallbackPage} />
-      
-      {/* Protected Routes */}
-      <Route path={"/"}>
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      </Route>
-      <Route path={"/war-room"}>
-        <ProtectedRoute>
-          <WarRoomPage />
-        </ProtectedRoute>
-      </Route>
-      <Route path={"/library"}>
-        <ProtectedRoute>
-          <LibraryPage />
-        </ProtectedRoute>
-      </Route>
-      <Route path={"/coach"}>
-        <ProtectedRoute>
-          <CoachPersonalityPage />
-        </ProtectedRoute>
-      </Route>
-      <Route path={"/coachOS"}>
-        <ProtectedRoute>
-          <CoachOSPage />
-        </ProtectedRoute>
-      </Route>
-      <Route path={"/settings"}>
-        <ProtectedRoute>
-          <AccountSettingsPage />
-        </ProtectedRoute>
-      </Route>
-      <Route path={"/profile"}>
+      {/* Public routes — no login required */}
+      <Route path="/" component={CounterpickPage} />
+      <Route path="/login" component={LoginPage} />
+      <Route path="/signup" component={SignupPage} />
+      <Route path="/onboarding" component={OnboardingPage} />
+      <Route path="/discord/callback" component={DiscordCallbackPage} />
+
+      {/* Optional protected routes — only if logged in */}
+      <Route path="/profile">
         <ProtectedRoute>
           <UserProfilePage />
         </ProtectedRoute>
       </Route>
+      <Route path="/settings">
+        <ProtectedRoute>
+          <AccountSettingsPage />
+        </ProtectedRoute>
+      </Route>
 
-      {/* Error Route */}
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
+      {/* Admin Operations */}
+      <Route path="/admin">
+        <AdminRoute>
+          <AdminDashboardPage />
+        </AdminRoute>
+      </Route>
+      <Route path="/admin/counterpicks">
+        <AdminRoute>
+          <AdminCounterpicksPage />
+        </AdminRoute>
+      </Route>
+
+      {/* 404 */}
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );

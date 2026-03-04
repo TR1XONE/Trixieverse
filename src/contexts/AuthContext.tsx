@@ -6,11 +6,13 @@ export interface User {
   username: string;
   createdAt: Date;
   discordId?: string;
+  role?: string;
 }
 
 export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  loading: boolean; // Alias for isLoading used in some components
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, username: string, password: string) => Promise<void>;
@@ -36,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       username: String(raw.username),
       createdAt: createdAtValue ? new Date(createdAtValue) : new Date(),
       discordId: raw?.discordId,
+      role: raw?.role,
     };
   };
 
@@ -266,6 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         isLoading,
+        loading: isLoading,
         isAuthenticated: !!user,
         login,
         signup,

@@ -1,168 +1,64 @@
 import { Link, useLocation } from 'wouter';
-import { Home, Zap, BookOpen, Wand2, Sparkles, Globe, Settings, User, LogOut } from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { User, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Navigation() {
   const [location] = useLocation();
-  const { language, setLanguage, t } = useLanguage();
   const { user, logout } = useAuth();
 
-  const isActive = (path: string) => location === path;
+  // Hide nav entirely on auth/onboarding pages
+  const hiddenRoutes = ['/login', '/signup', '/onboarding', '/discord/callback'];
+  if (hiddenRoutes.includes(location)) return null;
 
   return (
-    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-primary/30 shadow-lg shadow-primary/10">
+    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-primary/10 shadow-sm shadow-primary/5">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-14">
+
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center gap-3 font-bold text-xl text-foreground hover:text-primary transition-all duration-300 group"
+            className="flex items-center gap-2.5 font-bold text-lg text-foreground hover:text-primary transition-colors group"
           >
-            <div className="w-10 h-10 rounded-sm bg-gradient-to-br from-primary via-secondary to-accent flex items-center justify-center text-white font-bold text-lg group-hover:shadow-lg group-hover:shadow-primary/50 transition-all duration-300">
-              ⚔️
-            </div>
-            <span className="uppercase tracking-wider">TrixieVerse</span>
+
+            <span className="uppercase tracking-widest text-sm hidden"></span>
           </Link>
 
-          {/* Navigation Links */}
-          <div className="flex items-center gap-1">
-            {user && (
-              <>
-                <Link
-                  href="/"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-sm transition-all duration-200 uppercase tracking-wider font-bold text-sm ${
-                    isActive('/')
-                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40 border border-primary/50'
-                      : 'text-foreground hover:bg-primary/20 hover:border border-primary/30 hover:shadow-lg hover:shadow-primary/20'
-                  }`}
-                >
-                  <Home className="w-5 h-5" />
-                  <span className="hidden sm:inline">{t('nav.dashboard')}</span>
-                </Link>
-
-                <Link
-                  href="/war-room"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-sm transition-all duration-200 uppercase tracking-wider font-bold text-sm ${
-                    isActive('/war-room')
-                      ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/40 border border-accent/50'
-                      : 'text-foreground hover:bg-accent/20 hover:border border-accent/30 hover:shadow-lg hover:shadow-accent/20'
-                  }`}
-                >
-                  <Zap className="w-5 h-5" />
-                  <span className="hidden sm:inline">{t('nav.warRoom')}</span>
-                </Link>
-
-                <Link
-                  href="/library"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-sm transition-all duration-200 uppercase tracking-wider font-bold text-sm ${
-                    isActive('/library')
-                      ? 'bg-secondary text-secondary-foreground shadow-lg shadow-secondary/40 border border-secondary/50'
-                      : 'text-foreground hover:bg-secondary/20 hover:border border-secondary/30 hover:shadow-lg hover:shadow-secondary/20'
-                  }`}
-                >
-                  <BookOpen className="w-5 h-5" />
-                  <span className="hidden sm:inline">{t('nav.library')}</span>
-                </Link>
-
-                <Link
-                  href="/coach"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-sm transition-all duration-200 uppercase tracking-wider font-bold text-sm ${
-                    isActive('/coach')
-                      ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/40 border border-orange-500/50'
-                      : 'text-foreground hover:bg-orange-500/20 hover:border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20'
-                  }`}
-                >
-                  <Wand2 className="w-5 h-5" />
-                  <span className="hidden sm:inline">{t('nav.coach')}</span>
-                </Link>
-
-                <Link
-                  href="/coachOS"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-sm transition-all duration-200 uppercase tracking-wider font-bold text-sm ${
-                    isActive('/coachOS')
-                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/40 border border-purple-500/50'
-                      : 'text-foreground hover:bg-purple-500/20 hover:border border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/20'
-                  }`}
-                >
-                  <Sparkles className="w-5 h-5" />
-                  <span className="hidden sm:inline">CoachOS</span>
-                </Link>
-
-                <Link
-                  href="/settings"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-sm transition-all duration-200 uppercase tracking-wider font-bold text-sm ${
-                    isActive('/settings')
-                      ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/40 border border-cyan-500/50'
-                      : 'text-foreground hover:bg-cyan-500/20 hover:border border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/20'
-                  }`}
-                >
-                  <Settings className="w-5 h-5" />
-                  <span className="hidden sm:inline">Settings</span>
-                </Link>
-              </>
-            )}
-
-            {/* Language Switcher */}
-            <div className="flex items-center gap-2 ml-4 pl-4 border-l border-primary/30">
-              <Globe className="w-4 h-4 text-muted-foreground" />
-              <button
-                onClick={() => setLanguage('sv')}
-                className={`px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-wider transition-all ${
-                  language === 'sv'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-foreground hover:bg-muted/30'
-                }`}
-              >
-                SV
-              </button>
-              <button
-                onClick={() => setLanguage('en')}
-                className={`px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-wider transition-all ${
-                  language === 'en'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-foreground hover:bg-muted/30'
-                }`}
-              >
-                EN
-              </button>
-            </div>
-
-            {/* Auth Menu */}
+          {/* Right side — tiny auth */}
+          <div className="flex items-center gap-2">
             {user ? (
-              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-primary/30">
-                <Link
-                  href="/profile"
-                  className="flex items-center gap-2 px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/20 hover:text-primary transition-all"
-                >
-                  <User className="w-4 h-4" />
-                  <span className="hidden sm:inline">{user.username}</span>
-                </Link>
+              <>
+                {user.role === 'ADMIN' && (
+                  <Link
+                    href="/admin"
+                    title="Admin Dashboard"
+                    className="p-1.5 rounded-sm text-primary/70 hover:text-primary hover:bg-primary/10 transition-all mr-2"
+                  >
+                    <Shield className="w-4 h-4" />
+                  </Link>
+                )}
+                <span className="text-xs text-muted-foreground/50 hidden sm:inline">
+                  {user.username}
+                </span>
                 <button
                   onClick={logout}
-                  className="flex items-center gap-2 px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-wider text-red-400 hover:bg-red-500/20 transition-all"
+                  title="Log out"
+                  className="p-1.5 rounded-sm text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/20 transition-all"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline">Logout</span>
+                  <User className="w-4 h-4" />
                 </button>
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-primary/30">
-                <Link
-                  href="/login"
-                  className="px-4 py-1 rounded-sm text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/30 hover:text-primary transition-all border border-primary/30"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/signup"
-                  className="px-4 py-1 rounded-sm text-xs font-bold uppercase tracking-wider text-white bg-primary hover:bg-primary/80 transition-all"
-                >
-                  Sign Up
-                </Link>
-              </div>
+              <Link
+                href="/login"
+                title="Sign in"
+                className="p-1.5 rounded-sm text-muted-foreground/30 hover:text-muted-foreground/70 hover:bg-muted/10 transition-all"
+              >
+                <User className="w-4 h-4" />
+              </Link>
             )}
           </div>
+
         </div>
       </div>
     </nav>

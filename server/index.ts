@@ -37,6 +37,8 @@ import coachRoutes from './routes/coachRoutes';
 import accountRoutes from './routes/accountRoutes';
 import matchSyncRoutes from './routes/matchSyncRoutes';
 import blueprintRoutes from './routes/blueprintRoutes';
+import counterpickRoutes from './routes/counterpickRoutes';
+import warRoomRoutes from './routes/warRoomRoutes';
 
 // Import services
 import logger from './utils/logger';
@@ -92,6 +94,17 @@ app.get('/api/health/quick', async (req: Request, res: Response) => {
   });
 });
 
+app.get('/api/debug-env', (req: Request, res: Response) => {
+  res.json({
+    DB_NAME: process.env.DB_NAME,
+    DB_USER: process.env.DB_USER,
+    DB_HOST: process.env.DB_HOST,
+    DB_PORT: process.env.DB_PORT,
+    DATABASE_URL: process.env.DATABASE_URL,
+    PGDATABASE: process.env.PGDATABASE
+  });
+});
+
 // Main API routes
 app.use('/api', apiRoutes);
 
@@ -107,6 +120,12 @@ app.use('/api/account', accountRoutes);
 
 // Admin routes (protected)
 app.use('/api/admin', verifyToken, adminRoutes);
+
+// Counterpick routes
+app.use('/api/counterpick', counterpickRoutes);
+
+// War Room AI advice routes
+app.use('/api/warroom', warRoomRoutes);
 
 // Static files
 const staticPath = path.resolve(__dirname, '..', 'dist', 'public');

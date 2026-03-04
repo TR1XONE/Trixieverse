@@ -1,7 +1,7 @@
 import type { MatchStats } from '../models/MatchStats';
 import { z } from 'zod';
 import logger from '../../utils/logger';
-import { getOpenAIClient, getOpenAIModel } from './openaiClient';
+import { getGeminiClient, getGeminiModel } from './geminiClient';
 
 export interface SingleMatchAnalysis {
   matchId: string;
@@ -24,41 +24,27 @@ export class SingleMatchAnalysisService {
     const fallback = this.buildFallback(match);
 
     try {
-      const openai = getOpenAIClient();
-      const model = getOpenAIModel();
+      const ai = getGeminiClient();
+      const modelName = getGeminiModel();
 
-      const system =
-        'You are a Wild Rift coach. Return only valid JSON. No markdown. No extra keys.';
+      const prompt = `You are a Wild Rift coach. Return ONLY valid JSON, no markdown, no extra keys.
+Analyze this single match and produce: a short summary, strengths, improvements, and a 0-100 score.
+Output schema: { "matchId": string, "summary": string, "strengths": string[], "improvements": string[], "score": number }
+Match data: ${JSON.stringify(match)}`;
 
-      const user = {
-        instruction:
-          'Analyze this single match and produce: a short summary, strengths, improvements, and a 0-100 score.',
-        match,
-        output: {
-          matchId: 'string',
-          summary: 'string',
-          strengths: ['string'],
-          improvements: ['string'],
-          score: 'number (0-100)',
-        },
-      };
-
-      const response = await openai.chat.completions.create({
-        model,
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: JSON.stringify(user) },
-        ],
+      const result = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
       });
-
-      const content = response.choices?.[0]?.message?.content;
+      const content = result.text ?? '';
       if (!content) {
         return fallback;
       }
 
-      const parsed = singleMatchAnalysisSchema.safeParse(JSON.parse(content));
+      // Strip markdown code fences if present
+      const cleaned = content.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+
+      const parsed = singleMatchAnalysisSchema.safeParse(JSON.parse(cleaned));
       if (!parsed.success) {
         logger.warn('Wild Rift single match analysis failed schema validation', {
           issues: parsed.error.issues,
